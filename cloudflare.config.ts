@@ -3,7 +3,7 @@ import { bindings, defineConfig, defineWorker } from "cf/config";
 export default defineConfig({
   worker: defineWorker({
     name: "gallery-atlas",
-    entrypoint: "vinext/server/fetch-handler",
+    entrypoint: "./worker/index.ts",
     compatibilityDate: "2026-11-18",
     compatibilityFlags: ["nodejs_compat"],
     // Records CPU time per request; the free plan allows 10 ms before Error 1102.
@@ -11,7 +11,12 @@ export default defineConfig({
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
-      runWorkerFirst: ["/*", "!/_next/static/*", "!/*/_next/static/*"],
+      runWorkerFirst: [
+        "/*",
+        "!/_next/static/*",
+        "!/*/_next/static/*",
+        "!/fonts/*",
+      ],
     },
     env: {
       ASSETS: bindings.assets(),

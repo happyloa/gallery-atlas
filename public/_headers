@@ -1,0 +1,5 @@
+/fonts/noto-serif-tc/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/noto-serif-tc.css
+  Cache-Control: public, max-age=86400

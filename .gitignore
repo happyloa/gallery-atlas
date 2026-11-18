@@ -29,3 +29,6 @@ Thumbs.db
 
 # Chinese tour transcripts, © Art Institute of Chicago; generated at deploy
 public/tour-transcripts/
+
+# Self-hosted Noto Serif TC; generated at deploy
+public/fonts/

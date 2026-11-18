@@ -66,7 +66,7 @@ E2E 會自己啟動 dev server（port 5174），跑之前要先停掉 `npm run d
 
 3. `npm run deploy`。第一次部署會自動建立 KV namespace。
 
-Worker 已用 Workers Builds 連上這個 repo：push 到 `main` 會自動建置並部署（Deploy command 是 `npm run deploy`）。
+Worker 已用 Workers Builds 連上這個 repo：push 到 `main` 會自動建置並部署（Deploy command 是 `npm run deploy`）。Noto Serif TC 在部署時下載到 `public/fonts/`，不進 repo，所以本機開發時中文會顯示系統字型。
 
 ## 資料與授權
 

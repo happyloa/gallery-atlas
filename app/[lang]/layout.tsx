@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Sans, Newsreader, Noto_Serif_TC } from "next/font/google";
+import { Instrument_Sans, Newsreader } from "next/font/google";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -22,17 +22,6 @@ const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-instrument-sans",
-});
-
-/**
- * Chinese text. Google splits CJK fonts into unicode-range slices, so a page downloads
- * only the slices for characters it actually uses. Not preloaded for the same reason.
- */
-const notoSerifTc = Noto_Serif_TC({
-  weight: ["400", "500", "600"],
-  display: "swap",
-  preload: false,
-  variable: "--font-noto-serif-tc",
 });
 
 export const dynamicParams = false;
@@ -80,9 +69,18 @@ export default async function LocaleLayout({
       lang={LOCALE_TAGS[lang]}
       // Lets the router jump, not glide, to the top of a new page despite smooth anchors.
       data-scroll-behavior="smooth"
-      className={`${newsreader.variable} ${instrumentSans.variable} ${notoSerifTc.variable}`}
+      className={`${newsreader.variable} ${instrumentSans.variable}`}
     >
       <body className="flex min-h-svh flex-col">
+        {/* Chinese text. scripts/build-fonts.mjs writes this at deploy; a page downloads only
+            the unicode-range slices for the characters it uses. */}
+        {process.env.NODE_ENV === "production" ? (
+          <link
+            rel="stylesheet"
+            href="/fonts/noto-serif-tc.css"
+            precedence="default"
+          />
+        ) : null}
         <IntroCurtain />
         <MotionProvider />
         <I18nProvider locale={lang} dict={dict}>

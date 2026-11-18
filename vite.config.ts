@@ -10,7 +10,17 @@ export default defineConfig(({ command }) => {
   const fixtures = command === "serve" && process.env.AIC_FIXTURES === "1";
 
   return {
-    define: fixtures ? { "process.env.AIC_FIXTURES": JSON.stringify("1") } : {},
+    define: {
+      ...(fixtures ? { "process.env.AIC_FIXTURES": JSON.stringify("1") } : {}),
+      // Pages cached at the edge belong to one build (see worker/edge-cache.ts).
+      ...(command === "build"
+        ? {
+            "process.env.EDGE_CACHE_VERSION": JSON.stringify(
+              Date.now().toString(36),
+            ),
+          }
+        : {}),
+    },
     plugins: [
       vinext({
         cache: { data: kvDataAdapter() },

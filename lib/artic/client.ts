@@ -4,7 +4,12 @@
  * failure into an `AicError` with a code the UI can act on.
  */
 import { AIC_API_BASE, REQUEST_TIMEOUT_MS } from "./config";
-import { fixtureResponse, isFixtureMode, isFixtureNotFound } from "./dev-fixtures";
+import {
+  fixtureResponse,
+  isFixtureMode,
+  isFixtureNotFound,
+} from "./dev-fixtures";
+import { reportUpstreamFailure } from "@/lib/render-health";
 
 export type AicErrorCode =
   | "not_found"
@@ -151,6 +156,20 @@ function errorForStatus(status: number): AicError {
 export async function aicGet(
   path: string,
   options: AicRequestOptions = {},
+): Promise<unknown> {
+  try {
+    return await requestJson(path, options);
+  } catch (error) {
+    // A missing record is a stable answer; anything else may be gone on the next try.
+    if (!isAicError(error) || error.code !== "not_found")
+      reportUpstreamFailure();
+    throw error;
+  }
+}
+
+async function requestJson(
+  path: string,
+  options: AicRequestOptions,
 ): Promise<unknown> {
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("://")) {
     throw new AicError(

@@ -13,7 +13,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "vite preview",
-    "deploy": "node scripts/build-tours.mjs --transcripts && vinext-cloudflare deploy",
+    "deploy": "node scripts/build-tours.mjs --transcripts && node scripts/build-fonts.mjs && vinext-cloudflare deploy",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
