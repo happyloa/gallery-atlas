@@ -138,3 +138,29 @@ export function Bookmark({ filled = false, ...props }: IconProps & { filled?: bo
     </Icon>
   );
 }
+
+/** A frame with a plus: "add to an exhibition". */
+export function FramePlus(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 5h16v14H4z" />
+      <path d="M12 9v6M9 12h6" />
+    </Icon>
+  );
+}
+
+export function Pencil(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M15.5 4.5l4 4L8 20H4v-4z" />
+    </Icon>
+  );
+}
+
+export function Trash(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </Icon>
+  );
+}

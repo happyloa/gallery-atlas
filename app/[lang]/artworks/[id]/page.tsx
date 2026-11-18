@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { ZoomDialog } from "@/components/artwork/zoom-dialog";
+import { ExhibitionPicker } from "@/components/collections/exhibition-picker";
 import { FavoriteButton } from "@/components/collections/favorite-button";
 import { buttonStyles } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
@@ -223,6 +224,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               title={artwork.title}
               variant="full"
             />
+            <ExhibitionPicker artworkId={artwork.id} title={artwork.title} variant="full" />
             <a
               href={artwork.sourceUrl}
               target="_blank"

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ExhibitionsSection } from "@/components/collections/exhibitions-section";
 import { FavoritesWall } from "@/components/collections/favorites-wall";
 import { Container } from "@/components/ui/container";
 import { isLocale } from "@/lib/i18n/config";
@@ -29,6 +30,7 @@ export default async function CollectionPage({ params }: { params: Params }) {
     <Container className="pt-16 pb-24 sm:pt-24 sm:pb-32">
       <h1 className="font-serif text-4xl sm:text-6xl">{t.title}</h1>
       <FavoritesWall />
+      <ExhibitionsSection />
     </Container>
   );
 }

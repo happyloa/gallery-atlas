@@ -224,3 +224,88 @@ export function removeFavorites(state: CollectionState, ids: readonly number[]):
   const drop = new Set(ids);
   return { ok: true, state: { ...state, favorites: state.favorites.filter((f) => !drop.has(f.id)) }, value: undefined };
 }
+
+// --- Exhibitions --------------------------------------------------------------------------
+
+export function findExhibition(state: CollectionState, id: string): Exhibition | undefined {
+  return state.exhibitions.find((exhibition) => exhibition.id === id);
+}
+
+/** Creates an exhibition at the top of the list. `id` comes from the caller (crypto.randomUUID). */
+export function createExhibition(
+  state: CollectionState,
+  title: string,
+  id: string,
+  now = Date.now(),
+): UpdateResult<Exhibition> {
+  const clean = cleanTitle(title);
+  if (!clean || !id || id.length > 64 || findExhibition(state, id)) return { ok: false, reason: "invalid" };
+  if (state.exhibitions.length >= MAX_EXHIBITIONS) return { ok: false, reason: "limit" };
+  const exhibition: Exhibition = { id, title: clean, artworkIds: [], createdAt: now, updatedAt: now };
+  return { ok: true, state: { ...state, exhibitions: [exhibition, ...state.exhibitions] }, value: exhibition };
+}
+
+/** Replaces one exhibition, leaving every other one untouched. */
+function updateExhibition(
+  state: CollectionState,
+  id: string,
+  change: (exhibition: Exhibition) => UpdateResult<Exhibition>,
+): UpdateResult<Exhibition> {
+  const current = findExhibition(state, id);
+  if (!current) return { ok: false, reason: "not_found" };
+  const result = change(current);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    state: { ...state, exhibitions: state.exhibitions.map((e) => (e.id === id ? result.value : e)) },
+    value: result.value,
+  };
+}
+
+export function renameExhibition(state: CollectionState, id: string, title: string, now = Date.now()): UpdateResult<Exhibition> {
+  const clean = cleanTitle(title);
+  if (!clean) return { ok: false, reason: "invalid" };
+  return updateExhibition(state, id, (exhibition) => ({
+    ok: true,
+    state,
+    value: { ...exhibition, title: clean, updatedAt: now },
+  }));
+}
+
+export function deleteExhibition(state: CollectionState, id: string): UpdateResult {
+  if (!findExhibition(state, id)) return { ok: false, reason: "not_found" };
+  return { ok: true, state: { ...state, exhibitions: state.exhibitions.filter((e) => e.id !== id) }, value: undefined };
+}
+
+/** Adds a work to the end of an exhibition. Adding a work already there is a no-op. */
+export function addToExhibition(
+  state: CollectionState,
+  id: string,
+  artworkId: number,
+  now = Date.now(),
+): UpdateResult<Exhibition> {
+  if (!Number.isInteger(artworkId) || artworkId <= 0) return { ok: false, reason: "invalid" };
+  return updateExhibition(state, id, (exhibition) => {
+    if (exhibition.artworkIds.includes(artworkId)) return { ok: true, state, value: exhibition };
+    if (exhibition.artworkIds.length >= MAX_EXHIBITION_ITEMS) return { ok: false, reason: "limit" };
+    return {
+      ok: true,
+      state,
+      value: { ...exhibition, artworkIds: [...exhibition.artworkIds, artworkId], updatedAt: now },
+    };
+  });
+}
+
+export function removeFromExhibition(
+  state: CollectionState,
+  id: string,
+  artworkIds: number | readonly number[],
+  now = Date.now(),
+): UpdateResult<Exhibition> {
+  const drop = new Set(typeof artworkIds === "number" ? [artworkIds] : artworkIds);
+  return updateExhibition(state, id, (exhibition) => ({
+    ok: true,
+    state,
+    value: { ...exhibition, artworkIds: exhibition.artworkIds.filter((a) => !drop.has(a)), updatedAt: now },
+  }));
+}

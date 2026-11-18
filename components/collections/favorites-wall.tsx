@@ -1,39 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import { ArtworkCard } from "@/components/artwork/artwork-card";
 import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Artwork } from "@/lib/artwork/types";
 import { removeFavorites } from "@/lib/collections/schema";
 import { update } from "@/lib/collections/store";
-import { useCollection } from "@/lib/collections/use-collection";
+import { useArtworks } from "@/lib/collections/use-artworks";
+import { useCollection, useHydrated } from "@/lib/collections/use-collection";
 import { localizePath } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
+import { ExhibitionPicker } from "./exhibition-picker";
 import { FavoriteButton } from "./favorite-button";
-
-const noop = () => () => {};
-/** False during server render and hydration, true afterwards. */
-function useHydrated(): boolean {
-  return useSyncExternalStore(
-    noop,
-    () => true,
-    () => false,
-  );
-}
-
-interface Loaded {
-  artworks: Map<number, Artwork>;
-  unavailable: Set<number>;
-}
 
 /**
  * Saved works. The ids come from this browser; their records come from /api/artworks,
- * where the server checks every id again and drops anything not displayable. Only ids not
- * yet fetched are requested, so removing a work never triggers a reload.
+ * where the server checks every id again and drops anything not displayable.
  */
 export function FavoritesWall() {
   const { locale, dict } = useI18n();
@@ -44,53 +29,7 @@ export function FavoritesWall() {
     () => collection.favorites.map((favorite) => favorite.id),
     [collection.favorites],
   );
-
-  const [loaded, setLoaded] = useState<Loaded>({
-    artworks: new Map(),
-    unavailable: new Set(),
-  });
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-
-  const missing = useMemo(
-    () =>
-      ids.filter(
-        (id) => !loaded.artworks.has(id) && !loaded.unavailable.has(id),
-      ),
-    [ids, loaded],
-  );
-  const missingKey = missing.join(",");
-
-  useEffect(() => {
-    if (!missingKey) return;
-    const controller = new AbortController();
-    fetch(`/api/artworks?ids=${missingKey}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(String(response.status));
-        return (await response.json()) as {
-          artworks: Artwork[];
-          unavailable: number[];
-        };
-      })
-      .then((body) => {
-        setFailed(false);
-        setLoaded((previous) => {
-          const artworks = new Map(previous.artworks);
-          for (const artwork of body.artworks)
-            artworks.set(artwork.id, artwork);
-          const unavailable = new Set(previous.unavailable);
-          for (const id of body.unavailable) unavailable.add(id);
-          return { artworks, unavailable };
-        });
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          console.error(error);
-          setFailed(true);
-        }
-      });
-    return () => controller.abort();
-  }, [missingKey, attempt]);
+  const records = useArtworks(ids);
 
   if (!hydrated)
     return <ResultsSkeleton label={dict.explore.loading} count={4} />;
@@ -113,16 +52,7 @@ export function FavoritesWall() {
     );
   }
 
-  const shown = ids.flatMap((id) => {
-    const artwork = loaded.artworks.get(id);
-    return artwork ? [artwork] : [];
-  });
-  const gone = ids.filter((id) => loaded.unavailable.has(id));
-  const loading = missing.length > 0 && !failed;
-
-  const removeGone = () => {
-    update((state) => removeFavorites(state, gone));
-  };
+  const gone = records.unavailable;
 
   return (
     <section aria-labelledby="favorites-heading" className="mt-12">
@@ -145,40 +75,46 @@ export function FavoritesWall() {
               ? t.unavailableOne
               : format(t.unavailable, { count: gone.length })}
           </p>
-          <Button variant="secondary" size="sm" onClick={removeGone}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => update((state) => removeFavorites(state, gone))}
+          >
             {t.removeUnavailable}
           </Button>
         </div>
       ) : null}
 
-      {failed ? (
+      {records.failed ? (
         <div
           role="alert"
           className="mt-6 flex flex-wrap items-center gap-4 text-sm"
         >
           <p>{t.loadError}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setAttempt((n) => n + 1)}
-          >
+          <Button variant="secondary" size="sm" onClick={records.retry}>
             {t.retry}
           </Button>
         </div>
       ) : null}
 
-      {shown.length > 0 ? (
+      {records.artworks.length > 0 ? (
         <ul className="mt-12 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {shown.map((artwork) => (
+          {records.artworks.map((artwork) => (
             <li key={artwork.id}>
               <ArtworkCard
                 artwork={artwork}
                 locale={locale}
                 action={
-                  <FavoriteButton
-                    artworkId={artwork.id}
-                    title={artwork.title}
-                  />
+                  <div className="flex gap-2">
+                    <ExhibitionPicker
+                      artworkId={artwork.id}
+                      title={artwork.title}
+                    />
+                    <FavoriteButton
+                      artworkId={artwork.id}
+                      title={artwork.title}
+                    />
+                  </div>
                 }
               />
             </li>
@@ -186,10 +122,10 @@ export function FavoritesWall() {
         </ul>
       ) : null}
 
-      {loading ? (
+      {records.pending > 0 ? (
         <ResultsSkeleton
           label={dict.explore.loading}
-          count={Math.min(missing.length, 4)}
+          count={Math.min(records.pending, 4)}
         />
       ) : null}
     </section>

@@ -51,7 +51,7 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 | Phase 1 | 版面、設計 token、共用元件、About      | 完成   |
 | Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 完成   |
 | Phase 3 | 中英雙語、作品詳情、收藏、E2E          | 完成   |
-| Phase 4 | 自訂策展清單                           | 未開始 |
+| Phase 4 | 自訂策展清單                           | 完成   |
 | Phase 5 | 無障礙、SEO、README、GitHub Actions CI | 未開始 |
 | Phase 6 | 部署到 Cloudflare Workers、正式站驗證  | 未開始 |
 
@@ -82,6 +82,14 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 - 完整圖片用原生 `<dialog>` 的 modal 模式：焦點限制在對話框內、Escape 關閉、關閉後焦點回到按鈕。最大只到館方對公有領域作品開放的 1686px。
 - 收藏存在 localStorage（`gallery-atlas:collection`），有版本號並用 Zod 逐筆驗證：損毀的 JSON 重設、舊版的純 id 陣列自動升級、重複與無效的項目移除、上限 500 件。讀取用 `useSyncExternalStore`，伺服器與 hydration 時一律視為空收藏，所以不會有 hydration 不一致；`storage` event 讓其他分頁同步。
 - 「我的收藏」頁把收藏的 id 交給 `/api/artworks?ids=` 重新檢查，館方下架或不再是公有領域的作品會列為無法顯示，並提供一鍵移除。
+
+### 自訂展覽
+
+- 「我的收藏」頁可以建立展覽，作品頁和收藏卡片上的「加入展覽」對話框用勾選的方式加入或移除，也能在對話框裡直接建立新展覽。
+- 每個展覽有自己的頁面（`/[lang]/collection/[展覽 id]`），可以重新命名、移除作品、刪除展覽。刪除用確認對話框，焦點預設在「取消」，按 Escape 等同取消。
+- 最多 10 個展覽、每個 100 件，同一件作品在同一個展覽只會出現一次；超過上限或名稱空白時會顯示說明。名稱上限 80 個字元。
+- 展覽和收藏存在同一份 localStorage 資料裡，所有寫入都套用在最新的儲存狀態上，所以另一個分頁的修改不會被覆蓋。展覽頁的資料只在瀏覽器端，伺服器只檢查 id 格式。
+- 作品資料由共用的 `useArtworks` 讀取：同一頁面期間已讀過的作品不重抓，一次最多 200 個 id。
 
 ### 館方 API（`lib/artic/`）
 
