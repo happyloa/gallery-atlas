@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { localizePath } from "@/lib/i18n/config";
+import { useI18n } from "@/lib/i18n/provider";
 
 export default function ErrorPage({
   error,
@@ -12,6 +14,9 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { locale, dict } = useI18n();
+  const t = dict.errors;
+
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -19,21 +24,21 @@ export default function ErrorPage({
   return (
     <EmptyState
       headingLevel="h1"
-      eyebrow="Something went wrong"
-      title="This room didn’t open as expected."
+      eyebrow={t.eyebrow}
+      title={t.title}
       action={
         <>
-          <Button onClick={reset}>Try again</Button>
-          <Link href="/" className={buttonStyles({ variant: "secondary" })}>
-            Back to Discover
+          <Button onClick={reset}>{t.tryAgain}</Button>
+          <Link
+            href={localizePath(locale, "/")}
+            className={buttonStyles({ variant: "secondary" })}
+          >
+            {t.backToDiscover}
           </Link>
         </>
       }
     >
-      <p>
-        The page hit an unexpected error. Trying again usually helps; if it
-        keeps happening, come back a little later.
-      </p>
+      <p>{t.body}</p>
     </EmptyState>
   );
 }

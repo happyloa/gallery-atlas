@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { GalleryRoom } from "@/components/gallery-room/gallery-room";
@@ -7,6 +8,9 @@ import type { RoomArtwork } from "@/components/gallery-room/types";
 import { buttonStyles } from "@/components/ui/button";
 import { ArrowDown, ArrowLeft, ArrowRight } from "@/components/ui/icons";
 import type { Artwork } from "@/lib/artwork/types";
+import { localizePath } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 export interface HeroGalleryProps {
@@ -22,6 +26,8 @@ function pad(value: number): string {
 }
 
 export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
+  const { locale, dict } = useI18n();
+  const t = dict.hero;
   const [activeIndex, setActiveIndex] = useState(0);
   const active = artworks[activeIndex];
   const count = artworks.length;
@@ -101,17 +107,16 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
           </p>
           <h1
             id="hero-heading"
-            className="mt-4 font-serif text-[2.6rem] leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl"
+            className="mt-4 font-serif text-[2.6rem] leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl [html:lang(zh-Hant-TW)_&]:leading-[1.2] [html:lang(zh-Hant-TW)_&]:tracking-normal"
           >
-            Art is worth lingering over.
+            {t.headline}
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-gallery-text/85 sm:text-lg">
-            Step into a room of public-domain paintings and prints from the Art
-            Institute of Chicago, then browse the collection at your own pace.
+            {t.lede}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <a href="#explore" className={buttonStyles({ tone: "dark" })}>
-              Explore the collection
+              {t.cta}
               <ArrowDown aria-hidden="true" className="size-4" />
             </a>
           </div>
@@ -129,9 +134,15 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
               className="border-l-2 border-accent bg-paper/95 py-4 pr-5 pl-4 text-ink shadow-xl"
             >
               <p className="text-[0.6875rem] tracking-[0.16em] text-muted uppercase">
-                <span className="sr-only">Work </span>
-                {pad(activeIndex + 1)} <span aria-hidden="true">/</span>
-                <span className="sr-only"> of </span> {pad(count)}
+                <span className="sr-only">
+                  {format(t.position, {
+                    current: activeIndex + 1,
+                    total: count,
+                  })}
+                </span>
+                <span aria-hidden="true">
+                  {pad(activeIndex + 1)} / {pad(count)}
+                </span>
               </p>
               <p className="mt-2 text-sm font-medium">{active.artist}</p>
               <p className="font-serif text-lg leading-snug italic">
@@ -142,6 +153,12 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
                   .filter(Boolean)
                   .join(" · ")}
               </p>
+              <Link
+                href={localizePath(locale, `/artworks/${active.id}`)}
+                className="mt-3 inline-block text-sm text-accent underline underline-offset-4 hover:text-accent-deep"
+              >
+                {t.viewArtwork}
+              </Link>
             </div>
             <div className="mt-3 flex gap-2">
               <button
@@ -157,7 +174,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
                 )}
               >
                 <ArrowLeft aria-hidden="true" className="size-4" />
-                <span className="sr-only">Previous work</span>
+                <span className="sr-only">{t.previous}</span>
               </button>
               <button
                 type="button"
@@ -172,7 +189,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
                 )}
               >
                 <ArrowRight aria-hidden="true" className="size-4" />
-                <span className="sr-only">Next work</span>
+                <span className="sr-only">{t.next}</span>
               </button>
             </div>
           </div>

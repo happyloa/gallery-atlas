@@ -5,48 +5,67 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { searchArtworks } from "@/lib/artic/artworks";
 import type { SearchResult } from "@/lib/artic/artworks";
 import { isAicError } from "@/lib/artic/client";
-import { ARTWORK_TYPES, MAX_PAGE, PAGE_SIZE } from "@/lib/artic/config";
+import { MAX_PAGE, PAGE_SIZE } from "@/lib/artic/config";
 import type { SearchQueryError } from "@/lib/artic/queries";
 import { searchHref } from "@/lib/artic/search-url";
 import type { SearchQuery } from "@/lib/artic/search-url";
+import { LOCALE_TAGS } from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { format } from "@/lib/i18n/format";
 import { Pagination } from "./pagination";
 import { ResultsError } from "./results-error";
+import type { ResultsErrorReason } from "./results-error";
 
-const number = new Intl.NumberFormat("en-US");
-
-function describe(query: SearchQuery): string {
-  const type = ARTWORK_TYPES.find(
-    (t) => t.slug === query.type,
-  )?.label.toLowerCase();
-  const what = type ? `${type} works` : "works";
-  return query.q ? `${what} matching “${query.q}”` : what;
+interface ResultsProps {
+  locale: Locale;
+  dict: Dictionary;
+  query: SearchQuery;
+  error?: SearchQueryError;
 }
 
 function Summary({
+  locale,
+  dict,
   query,
   result,
-}: {
-  query: SearchQuery;
-  result: SearchResult;
-}) {
+}: Omit<ResultsProps, "error"> & { result: SearchResult }) {
+  const t = dict.explore;
+  const number = new Intl.NumberFormat(LOCALE_TAGS[locale]);
+  const typeLabel = query.type ? dict.types[query.type] : "";
+  const type = locale === "en" ? typeLabel.toLowerCase() : typeLabel;
+  const template = query.q
+    ? query.type
+      ? t.summaryTypeQuery
+      : t.summaryQuery
+    : query.type
+      ? t.summaryType
+      : t.summaryAll;
   const from = (query.page - 1) * PAGE_SIZE + 1;
   const to = from + result.artworks.length - 1;
+
   return (
     <div className="mt-14 flex flex-col gap-2 border-y border-line py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
       <p role="status">
-        <span className="font-medium">{number.format(result.total)}</span>{" "}
-        {describe(query)}
+        {format(template, {
+          count: number.format(result.total),
+          type,
+          q: query.q,
+        })}
         {result.artworks.length > 0 ? (
           <span className="text-muted">
-            {" "}
-            · showing {number.format(from)}–{number.format(to)}
+            {format(t.showing, {
+              from: number.format(from),
+              to: number.format(to),
+            })}
           </span>
         ) : null}
       </p>
       {result.limited ? (
         <p className="text-muted">
-          Search reaches the first{" "}
-          {number.format(result.totalPages * PAGE_SIZE)} results.
+          {format(t.limited, {
+            count: number.format(result.totalPages * PAGE_SIZE),
+          })}
         </p>
       ) : null}
     </div>
@@ -54,38 +73,44 @@ function Summary({
 }
 
 export async function ExploreResults({
+  locale,
+  dict,
   query,
   error,
-}: {
-  query: SearchQuery;
-  error?: SearchQueryError;
-}) {
+}: ResultsProps) {
+  const t = dict.explore;
+  const backToFirst = (
+    <Link
+      href={searchHref(locale, { ...query, page: 1 })}
+      prefetch={false}
+      className={buttonStyles()}
+    >
+      {t.backToFirstPage}
+    </Link>
+  );
+
   // Bad page numbers are answered here, without calling the museum's API.
   if (error) {
+    const outOfRange = error.code === "page_out_of_range";
     return (
       <EmptyState
         className="py-16 sm:py-20"
-        eyebrow={
-          error.code === "page_out_of_range"
-            ? "Past the end"
-            : "That page doesn’t exist"
-        }
+        eyebrow={outOfRange ? t.pastEndEyebrow : t.invalidPageEyebrow}
         title={
-          error.code === "page_out_of_range"
-            ? `Search stops at page ${MAX_PAGE}.`
-            : "That page number isn’t valid."
+          outOfRange
+            ? format(t.pageOutOfRangeTitle, { max: MAX_PAGE })
+            : t.invalidPageTitle
         }
-        action={
-          <Link
-            href={searchHref({ ...query, page: 1 })}
-            prefetch={false}
-            className={buttonStyles()}
-          >
-            Back to page 1
-          </Link>
-        }
+        action={backToFirst}
       >
-        <p>{error.message}</p>
+        <p>
+          {outOfRange
+            ? format(t.pageOutOfRangeBody, {
+                count: MAX_PAGE * PAGE_SIZE,
+                max: MAX_PAGE,
+              })
+            : t.invalidPageBody}
+        </p>
       </EmptyState>
     );
   }
@@ -94,40 +119,40 @@ export async function ExploreResults({
   try {
     result = await searchArtworks(query);
   } catch (caught) {
-    const retryable = isAicError(caught) ? caught.retryable : true;
-    const message =
+    const reason: ResultsErrorReason =
       isAicError(caught) && caught.code === "rate_limited"
-        ? "Too many requests reached the museum at once."
+        ? "rate_limited"
         : isAicError(caught) && caught.code === "timeout"
-          ? "The request took too long."
-          : "The request failed.";
-    return <ResultsError message={message} retryable={retryable} />;
+          ? "timeout"
+          : "generic";
+    return (
+      <ResultsError
+        reason={reason}
+        retryable={isAicError(caught) ? caught.retryable : true}
+      />
+    );
   }
 
   if (result.total === 0) {
     return (
       <>
-        <Summary query={query} result={result} />
+        <Summary locale={locale} dict={dict} query={query} result={result} />
         <EmptyState
           className="py-16 sm:py-20"
           title={
-            query.q
-              ? `Nothing in the collection matches “${query.q}”.`
-              : "No works to show here."
+            query.q ? format(t.emptyQueryTitle, { q: query.q }) : t.emptyTitle
           }
           action={
             <Link
-              href={searchHref({})}
+              href={searchHref(locale, {})}
               prefetch={false}
               className={buttonStyles({ variant: "secondary" })}
             >
-              Clear filters
+              {t.clearFilters}
             </Link>
           }
         >
-          <p>
-            Try a different spelling, an artist’s surname, or a broader type.
-          </p>
+          <p>{t.emptyHint}</p>
         </EmptyState>
       </>
     );
@@ -137,32 +162,33 @@ export async function ExploreResults({
     return (
       <EmptyState
         className="py-16 sm:py-20"
-        eyebrow="Past the end"
-        title={`This search has ${result.totalPages} ${result.totalPages === 1 ? "page" : "pages"}.`}
-        action={
-          <Link
-            href={searchHref({ ...query, page: 1 })}
-            prefetch={false}
-            className={buttonStyles()}
-          >
-            Back to page 1
-          </Link>
+        eyebrow={t.pastEndEyebrow}
+        title={
+          result.totalPages === 1
+            ? t.pastEndTitleOne
+            : format(t.pastEndTitleOther, { count: result.totalPages })
         }
+        action={backToFirst}
       />
     );
   }
 
   return (
     <>
-      <Summary query={query} result={result} />
+      <Summary locale={locale} dict={dict} query={query} result={result} />
       <ul className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {result.artworks.map((artwork) => (
           <li key={artwork.id}>
-            <ArtworkCard artwork={artwork} />
+            <ArtworkCard artwork={artwork} locale={locale} />
           </li>
         ))}
       </ul>
-      <Pagination query={query} totalPages={result.totalPages} />
+      <Pagination
+        locale={locale}
+        dict={dict}
+        query={query}
+        totalPages={result.totalPages}
+      />
     </>
   );
 }

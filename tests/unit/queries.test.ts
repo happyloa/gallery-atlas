@@ -117,12 +117,12 @@ describe("buildSearchRequest", () => {
 });
 
 describe("links and ids", () => {
-  it("builds short Explore links", () => {
-    expect(searchHref({ q: "monet water", type: "painting", page: 1 })).toBe(
-      "/?q=monet+water&type=painting#explore",
-    );
-    expect(searchHref({ page: 2 })).toBe("/?page=2#explore");
-    expect(searchHref({})).toBe("/#explore");
+  it("builds short, localized Explore links", () => {
+    expect(
+      searchHref("en", { q: "monet water", type: "painting", page: 1 }),
+    ).toBe("/en?q=monet+water&type=painting#explore");
+    expect(searchHref("zh-tw", { page: 2 })).toBe("/zh-tw?page=2#explore");
+    expect(searchHref("en", {})).toBe("/en#explore");
   });
 
   it("parses artwork ids strictly", () => {

@@ -1,11 +1,17 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** Placeholder wall shown while results load. */
-export function ResultsSkeleton({ count = 8 }: { count?: number }) {
+export function ResultsSkeleton({
+  label,
+  count = 8,
+}: {
+  label: string;
+  count?: number;
+}) {
   return (
     <div>
       <p className="sr-only" role="status">
-        Loading artworks…
+        {label}
       </p>
       <Skeleton className="mt-14 h-12 w-full" />
       <div className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

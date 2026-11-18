@@ -2,6 +2,7 @@
  * The Explore URL shape, shared by server and client code. Kept free of Zod and upstream
  * details so client components can import it without pulling either into the bundle.
  */
+import type { Locale } from "@/lib/i18n/config";
 import type { ArtworkTypeSlug } from "./config";
 
 export interface SearchQuery {
@@ -19,11 +20,12 @@ export function toSearchParams(query: Partial<SearchQuery>): URLSearchParams {
   return params;
 }
 
-/** A link to Explore with these settings, landing on the results. */
+/** A link to Explore in `locale` with these settings, landing on the results. */
 export function searchHref(
+  locale: Locale,
   query: Partial<SearchQuery>,
   hash = "explore",
 ): string {
   const search = toSearchParams(query).toString();
-  return `/${search ? `?${search}` : ""}${hash ? `#${hash}` : ""}`;
+  return `/${locale}${search ? `?${search}` : ""}${hash ? `#${hash}` : ""}`;
 }

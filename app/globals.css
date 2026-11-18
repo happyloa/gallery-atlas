@@ -17,12 +17,13 @@
   --color-gallery-text: #ece7df;
   --color-gallery-muted: #b9b2a8;
 
+  /* Latin glyphs come from the first font; Chinese characters fall through to Noto Serif TC. */
   --font-serif:
-    var(--font-newsreader), "Iowan Old Style", "Palatino Linotype", Georgia,
-    serif;
+    var(--font-newsreader), var(--font-noto-serif-tc), "Iowan Old Style",
+    "Palatino Linotype", Georgia, serif;
   --font-sans:
-    var(--font-instrument-sans), ui-sans-serif, system-ui, "Segoe UI",
-    sans-serif;
+    var(--font-instrument-sans), var(--font-noto-serif-tc), ui-sans-serif,
+    system-ui, "Segoe UI", sans-serif;
 
   --ease-gallery: cubic-bezier(0.22, 0.61, 0.24, 1);
 

@@ -7,6 +7,7 @@ import { Search } from "@/components/ui/icons";
 import { ARTWORK_TYPES, MAX_QUERY_LENGTH } from "@/lib/artic/config";
 import { searchHref } from "@/lib/artic/search-url";
 import type { SearchQuery } from "@/lib/artic/search-url";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 /** Typing pauses this long before the search runs on its own. */
@@ -22,6 +23,8 @@ const chip =
   "inline-flex min-h-10 items-center rounded-full border px-4 text-sm transition-colors duration-200 ease-gallery";
 
 export function ExploreControls({ query }: { query: SearchQuery }) {
+  const { locale, dict } = useI18n();
+  const t = dict.explore;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(query.q);
@@ -41,37 +44,46 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
     const timer = setTimeout(() => {
       setPushedQ(next);
       startTransition(() =>
-        router.push(searchHref({ q: next, type: query.type }), {
+        router.push(searchHref(locale, { q: next, type: query.type }), {
           scroll: false,
         }),
       );
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [value, query.q, query.type, router]);
+  }, [value, query.q, query.type, router, locale]);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next = clean(value);
     setPushedQ(next);
     startTransition(() =>
-      router.push(searchHref({ q: next, type: query.type }), { scroll: false }),
+      router.push(searchHref(locale, { q: next, type: query.type }), {
+        scroll: false,
+      }),
     );
   };
 
   const hasFilters = Boolean(query.q || query.type);
+  const filters = [
+    { slug: null, label: t.allTypes },
+    ...ARTWORK_TYPES.map((type) => ({
+      slug: type.slug,
+      label: dict.types[type.slug],
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
       {/* Works without JavaScript as a plain GET form. */}
       <form
         role="search"
-        aria-label="Search artworks"
-        action="/"
+        aria-label={t.searchLabel}
+        action={`/${locale}`}
         method="get"
         onSubmit={submit}
       >
         <label htmlFor="explore-q" className="sr-only">
-          Search artworks
+          {t.searchLabel}
         </label>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-0 size-5 -translate-y-1/2 text-muted" />
@@ -82,9 +94,10 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
             value={value}
             onChange={(event) => setValue(event.target.value)}
             maxLength={MAX_QUERY_LENGTH}
-            placeholder="Search by artist, title or subject"
+            placeholder={t.searchPlaceholder}
             autoComplete="off"
             enterKeyHint="search"
+            lang="en"
             className="min-h-12 w-full border-0 border-b border-ink/30 bg-transparent pl-9 font-serif text-xl text-ink transition-colors duration-200 ease-gallery placeholder:text-muted/80 focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 sm:text-2xl"
           />
           {query.type ? (
@@ -95,18 +108,18 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="sr-only" id="type-filter-label">
-          Filter by type
+          {t.filterLabel}
         </span>
         <ul
           aria-labelledby="type-filter-label"
           className="flex flex-wrap gap-2"
         >
-          {[{ slug: null, label: "All" }, ...ARTWORK_TYPES].map((type) => {
-            const selected = query.type === type.slug;
+          {filters.map((filter) => {
+            const selected = query.type === filter.slug;
             return (
-              <li key={type.label}>
+              <li key={filter.slug ?? "all"}>
                 <Link
-                  href={searchHref({ q: query.q, type: type.slug })}
+                  href={searchHref(locale, { q: query.q, type: filter.slug })}
                   scroll={false}
                   prefetch={false}
                   aria-current={selected ? "true" : undefined}
@@ -117,7 +130,7 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
                       : "border-ink/25 text-ink hover:border-ink",
                   )}
                 >
-                  {type.label}
+                  {filter.label}
                 </Link>
               </li>
             );
@@ -125,16 +138,16 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
         </ul>
         {hasFilters ? (
           <Link
-            href={searchHref({})}
+            href={searchHref(locale, {})}
             scroll={false}
             prefetch={false}
             className="ml-1 min-h-10 px-2 py-2 text-sm text-muted underline underline-offset-4 hover:text-ink"
           >
-            Clear filters
+            {t.clearFilters}
           </Link>
         ) : null}
         <p role="status" className="ml-auto text-sm text-muted">
-          {isPending ? "Searching…" : ""}
+          {isPending ? t.searching : ""}
         </p>
       </div>
     </div>

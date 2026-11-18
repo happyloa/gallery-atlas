@@ -1,36 +1,40 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
+import { localizePath } from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { EXTERNAL_REL } from "@/lib/utils";
 
-const SOURCES = [
-  { href: "https://www.artic.edu", label: "Art Institute of Chicago" },
-  { href: "https://api.artic.edu/docs/", label: "API documentation" },
-  { href: "https://www.artic.edu/image-licensing", label: "Image licensing" },
-  { href: "https://www.artic.edu/terms", label: "Terms" },
-] as const;
+export function SiteFooter({
+  locale,
+  dict,
+}: {
+  locale: Locale;
+  dict: Dictionary;
+}) {
+  const t = dict.footer;
+  const sources = [
+    { href: "https://www.artic.edu", label: t.museum },
+    { href: "https://api.artic.edu/docs/", label: t.apiDocs },
+    { href: "https://www.artic.edu/image-licensing", label: t.imageLicensing },
+    { href: "https://www.artic.edu/terms", label: t.terms },
+  ];
 
-export function SiteFooter() {
   return (
     <footer className="border-t border-line bg-paper-deep text-ink">
       <Container className="grid gap-12 py-14 sm:py-16 lg:grid-cols-[1.4fr_1fr_1fr] lg:gap-16">
         <div className="max-w-md">
           <p className="font-serif text-2xl">Gallery Atlas</p>
-          <p className="mt-4 text-sm leading-6 text-muted">
-            This is an independent project and is not affiliated with the Art
-            Institute of Chicago.
-          </p>
-          <p className="mt-3 text-sm leading-6 text-muted">
-            Image and artwork data courtesy of the Art Institute of Chicago.
-            Only works marked public domain are shown.
-          </p>
+          <p className="mt-4 text-sm leading-6 text-muted">{t.disclaimer}</p>
+          <p className="mt-3 text-sm leading-6 text-muted">{t.courtesy}</p>
         </div>
 
         <div>
           <h2 className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
-            Source
+            {t.source}
           </h2>
           <ul className="mt-4 space-y-2 text-sm">
-            {SOURCES.map((source) => (
+            {sources.map((source) => (
               <li key={source.href}>
                 <a
                   href={source.href}
@@ -39,7 +43,7 @@ export function SiteFooter() {
                   className="underline-offset-4 hover:underline"
                 >
                   {source.label}
-                  <span className="sr-only"> (opens in a new tab)</span>
+                  <span className="sr-only">{dict.site.opensInNewTab}</span>
                 </a>
               </li>
             ))}
@@ -48,18 +52,19 @@ export function SiteFooter() {
 
         <div>
           <h2 className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
-            Licensing
+            {t.licensing}
           </h2>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-muted">
-            <li>Artwork metadata: CC0</li>
-            <li>Artwork descriptions: CC BY 4.0</li>
-            <li>
-              Images: public-domain works only, under the museum&apos;s terms
-            </li>
+            <li>{t.metadataLicense}</li>
+            <li>{t.descriptionLicense}</li>
+            <li>{t.imageLicense}</li>
           </ul>
           <p className="mt-6 text-sm">
-            <Link href="/about" className="underline-offset-4 hover:underline">
-              About this project
+            <Link
+              href={localizePath(locale, "/about")}
+              className="underline-offset-4 hover:underline"
+            >
+              {t.aboutLink}
             </Link>
           </p>
         </div>

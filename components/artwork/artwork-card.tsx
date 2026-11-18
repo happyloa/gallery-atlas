@@ -1,4 +1,8 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Artwork } from "@/lib/artwork/types";
+import { localizePath } from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
 import { ArtworkImage } from "./artwork-image";
 
 const CARD_SIZES =
@@ -7,10 +11,21 @@ const CARD_SIZES =
 /**
  * Works are "hung on a line": every image keeps its own proportions and sits on a shared
  * baseline inside a fixed-height wall cell, so rows stay aligned without cropping.
+ *
+ * The title link stretches over the whole card (::after), so the card is one click target.
+ * `action` (e.g. a save button) sits above that layer as a sibling, never inside the link.
  */
-export function ArtworkCard({ artwork }: { artwork: Artwork }) {
+export function ArtworkCard({
+  artwork,
+  locale,
+  action,
+}: {
+  artwork: Artwork;
+  locale: Locale;
+  action?: ReactNode;
+}) {
   return (
-    <article className="group">
+    <article className="group relative">
       <div className="flex aspect-[4/5] items-end justify-center">
         <ArtworkImage
           image={artwork.image}
@@ -21,13 +36,21 @@ export function ArtworkCard({ artwork }: { artwork: Artwork }) {
       </div>
       <div className="mt-5 border-t border-line pt-4">
         <h3 className="font-serif text-lg leading-snug text-ink italic">
-          {artwork.title}
+          <Link
+            href={localizePath(locale, `/artworks/${artwork.id}`)}
+            className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-accent"
+          >
+            {artwork.title}
+          </Link>
         </h3>
         <p className="mt-1 text-sm text-ink">{artwork.artist}</p>
         {artwork.dateDisplay ? (
           <p className="mt-0.5 text-sm text-muted">{artwork.dateDisplay}</p>
         ) : null}
       </div>
+      {action ? (
+        <div className="absolute top-2 right-2 z-10">{action}</div>
+      ) : null}
     </article>
   );
 }

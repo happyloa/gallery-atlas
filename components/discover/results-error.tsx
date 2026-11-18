@@ -4,35 +4,48 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useI18n } from "@/lib/i18n/provider";
+
+export type ResultsErrorReason = "rate_limited" | "timeout" | "generic";
 
 /** Upstream failure while searching: say what happened and offer a retry. */
 export function ResultsError({
-  message,
+  reason,
   retryable,
 }: {
-  message: string;
+  reason: ResultsErrorReason;
   retryable: boolean;
 }) {
+  const { dict } = useI18n();
+  const t = dict.explore;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const message =
+    reason === "rate_limited"
+      ? t.errorRateLimited
+      : reason === "timeout"
+        ? t.errorTimeout
+        : t.errorGeneric;
 
   return (
     <EmptyState
       className="py-16 sm:py-20"
-      eyebrow="Couldn’t reach the collection"
-      title="The museum’s collection didn’t answer just now."
+      eyebrow={t.errorEyebrow}
+      title={t.errorTitle}
       action={
         retryable ? (
           <Button
             onClick={() => startTransition(() => router.refresh())}
             disabled={isPending}
           >
-            {isPending ? "Trying again…" : "Try again"}
+            {isPending ? t.tryingAgain : t.tryAgain}
           </Button>
         ) : null
       }
     >
-      <p>{message} The rest of the site still works.</p>
+      <p>
+        {message} {t.errorRest}
+      </p>
     </EmptyState>
   );
 }

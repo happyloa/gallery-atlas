@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import type { ArtworkImage as ArtworkImageData } from "@/lib/artwork/types";
 import { cn } from "@/lib/utils";
+import { format } from "@/lib/i18n/format";
+import { useI18n } from "@/lib/i18n/provider";
 
 /** Intrinsic size hints for layout; real size comes from srcset. */
 const BASE_WIDTH = 843;
@@ -23,6 +25,7 @@ export function ArtworkImage({
   className,
   fallbackClassName,
 }: ArtworkImageProps) {
+  const { dict } = useI18n();
   const [failed, setFailed] = useState(false);
   const height = Math.round(BASE_WIDTH / image.aspectRatio);
 
@@ -35,14 +38,14 @@ export function ArtworkImage({
     return (
       <div
         role="img"
-        aria-label={`${image.alt} (image unavailable)`}
+        aria-label={format(dict.artwork.imageUnavailableLabel, { alt: image.alt })}
         style={{ aspectRatio: image.aspectRatio }}
         className={cn(
           "flex items-center justify-center bg-[#e4dccd] bg-[repeating-linear-gradient(0deg,rgb(34_33_31/0.035)_0_1px,transparent_1px_3px),repeating-linear-gradient(90deg,rgb(34_33_31/0.03)_0_1px,transparent_1px_3px)] text-xs tracking-[0.14em] text-muted uppercase",
           fallbackClassName,
         )}
       >
-        Image unavailable
+        {dict.artwork.imageUnavailable}
       </div>
     );
   }

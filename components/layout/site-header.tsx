@@ -1,30 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { Menu, X } from "@/components/ui/icons";
+import {
+  LOCALE_COOKIE,
+  LOCALE_TAGS,
+  localizePath,
+  switchLocalePath,
+} from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Discover" },
-  { href: "/collection", label: "My Collection" },
-  { href: "/about", label: "About" },
-] as const;
+const ONE_YEAR = 60 * 60 * 24 * 365;
 
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/" || pathname.startsWith("/artworks");
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isActive(
+  pathname: string,
+  locale: Locale,
+  section: "home" | "collection" | "about",
+): boolean {
+  const rest = pathname.slice(`/${locale}`.length) || "/";
+  if (section === "home") return rest === "/" || rest.startsWith("/artworks");
+  return rest === `/${section}` || rest.startsWith(`/${section}/`);
 }
 
 export function SiteHeader() {
+  const { locale, dict } = useI18n();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const menuId = useId();
   const [openFor, setOpenFor] = useState<string | null>(null);
   // The menu belongs to the page it was opened on, so navigating closes it.
   const open = openFor === pathname;
   // The homepage hero is a dark gallery room, so the header floats over it in light type.
-  const overHero = pathname === "/";
+  const overHero = pathname === `/${locale}`;
+
+  const otherLocale: Locale = locale === "en" ? "zh-tw" : "en";
+  const query = searchParams.toString();
+  const switchHref = `${switchLocalePath(pathname, otherLocale)}${query ? `?${query}` : ""}`;
+  const rememberLocale = () => {
+    document.cookie = `${LOCALE_COOKIE}=${otherLocale}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
+  };
+
+  const items = [
+    {
+      section: "home",
+      href: localizePath(locale, "/"),
+      label: dict.site.discover,
+    },
+    {
+      section: "collection",
+      href: localizePath(locale, "/collection"),
+      label: dict.site.collection,
+    },
+    {
+      section: "about",
+      href: localizePath(locale, "/about"),
+      label: dict.site.about,
+    },
+  ] as const;
 
   useEffect(() => {
     if (!open) return;
@@ -34,6 +70,24 @@ export function SiteHeader() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  const languageLink = (
+    <Link
+      href={switchHref}
+      onClick={rememberLocale}
+      hrefLang={LOCALE_TAGS[otherLocale]}
+      lang={LOCALE_TAGS[otherLocale]}
+      aria-label={dict.site.switchLanguageLabel}
+      className={cn(
+        "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery",
+        overHero
+          ? "border-gallery-text/35 hover:border-gallery-text"
+          : "border-ink/25 hover:border-ink",
+      )}
+    >
+      {dict.site.switchLanguage}
+    </Link>
+  );
 
   return (
     <header
@@ -49,69 +103,69 @@ export function SiteHeader() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-paper focus:px-4 focus:py-2 focus:text-sm focus:text-ink"
       >
-        Skip to content
+        {dict.site.skipToContent}
       </a>
-      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-5 sm:h-20 sm:px-8 lg:px-12">
+      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-5 sm:h-20 sm:px-8 lg:px-12">
         <Link
-          href="/"
+          href={localizePath(locale, "/")}
           className="group flex items-baseline gap-2 font-serif text-xl tracking-tight sm:text-2xl"
         >
           <span>Gallery Atlas</span>
           <span
             className={cn(
-              "hidden text-[0.6875rem] font-sans tracking-[0.2em] uppercase sm:inline",
+              "hidden font-sans text-[0.6875rem] tracking-[0.2em] uppercase sm:inline",
               overHero ? "text-gallery-muted" : "text-muted",
             )}
           >
-            Public-domain art
+            {dict.site.tagline}
           </span>
         </Link>
 
-        <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-8 text-sm">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(pathname, item.href);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "relative py-2 transition-opacity duration-200 ease-gallery hover:opacity-100",
-                      active ? "opacity-100" : "opacity-75",
-                      "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:bg-current after:transition-transform after:duration-200",
-                      active
-                        ? "after:scale-x-100"
-                        : "after:scale-x-0 hover:after:scale-x-100",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <button
-          type="button"
-          className="-mr-2 inline-flex size-11 items-center justify-center rounded-full md:hidden"
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={() => setOpenFor(open ? null : pathname)}
-        >
-          {open ? (
-            <X aria-hidden="true" className="size-5" />
-          ) : (
-            <Menu aria-hidden="true" className="size-5" />
-          )}
-          <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
-        </button>
+        <div className="flex items-center gap-6 md:gap-8">
+          <nav aria-label={dict.site.primaryNav} className="hidden md:block">
+            <ul className="flex items-center gap-8 text-sm">
+              {items.map((item) => {
+                const active = isActive(pathname, locale, item.section);
+                return (
+                  <li key={item.section}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "relative py-2 transition-opacity duration-200 ease-gallery hover:opacity-100",
+                        active ? "opacity-100" : "opacity-75",
+                        "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:bg-current after:transition-transform after:duration-200",
+                        active
+                          ? "after:scale-x-100"
+                          : "after:scale-x-0 hover:after:scale-x-100",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          {languageLink}
+          <button
+            type="button"
+            className="-mr-2 inline-flex size-11 items-center justify-center rounded-full md:hidden"
+            aria-expanded={open}
+            aria-controls={menuId}
+            onClick={() => setOpenFor(open ? null : pathname)}
+          >
+            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+            <span className="sr-only">
+              {open ? dict.site.closeMenu : dict.site.openMenu}
+            </span>
+          </button>
+        </div>
       </div>
 
       <nav
         id={menuId}
-        aria-label="Primary"
+        aria-label={dict.site.primaryNav}
         hidden={!open}
         className={cn(
           "border-t md:hidden",
@@ -119,12 +173,12 @@ export function SiteHeader() {
         )}
       >
         <ul className="flex flex-col px-5 py-3 sm:px-8">
-          {NAV_ITEMS.map((item) => (
-            <li key={item.href}>
+          {items.map((item) => (
+            <li key={item.section}>
               <Link
                 href={item.href}
                 aria-current={
-                  isActive(pathname, item.href) ? "page" : undefined
+                  isActive(pathname, locale, item.section) ? "page" : undefined
                 }
                 className="block py-3 font-serif text-2xl"
               >
