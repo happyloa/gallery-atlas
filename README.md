@@ -6,7 +6,7 @@
 
 網站：尚未部署（預計部署到 Cloudflare Workers）
 
-技術：vinext（在 Vite 上執行的 Next.js App Router API）、React 19、TypeScript（strict）、Tailwind CSS v4，部署在 Cloudflare Workers。
+技術：vinext（在 Vite 上執行的 Next.js App Router API）、React 19、TypeScript（strict）、Tailwind CSS v4、three.js，部署在 Cloudflare Workers。
 
 > This is an independent project and is not affiliated with the Art Institute of Chicago.
 > 本站為個人作品，與芝加哥藝術博物館無關。
@@ -43,7 +43,7 @@ npm run typecheck
 | 階段    | 內容                                   | 狀態   |
 | ------- | -------------------------------------- | ------ |
 | Phase 0 | 專案初始化、lint、型別檢查、建置       | 完成   |
-| Phase 1 | 版面、設計 token、共用元件、About      | 未開始 |
+| Phase 1 | 版面、設計 token、共用元件、About      | 完成   |
 | Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 未開始 |
 | Phase 3 | 作品詳情、收藏                         | 未開始 |
 | Phase 4 | 自訂策展清單                           | 未開始 |
@@ -55,7 +55,13 @@ npm run typecheck
 - 用 vinext 而不用 Next.js 加 OpenNext：要部署到 Cloudflare Workers，vinext 原生支援，建置也比較輕。程式碼照 Next.js App Router 的寫法，萬一碰到 vinext 解決不了的相容問題，可以換回 Next.js 加 OpenNext。
 - vinext 的 `next/image` 沒有建置期圖片最佳化，作品圖直接用館方 IIIF 的固定尺寸，加上 lazy loading 與明確的寬高。
 - Cloudflare KV 資料快取與 Cloudflare Images 目前關閉，部署時再評估。在那之前 vinext 用記憶體快取，Workers 上不會跨 isolate 保留。
-- 程式碼放在 `src/`，路徑別名 `@/*` 指向 `src/*`。
+- 程式碼直接放在根目錄的 `app/`、`components/`、`lib/`，路徑別名 `@/*` 指向專案根目錄。
+- 首頁 hero 是一間 three.js 展廳（`components/gallery-room/`）：作品照實際尺寸掛在牆上，每件有自己的投射燈，房間光照在瀏覽器裡預先烘焙。canvas 只是裝飾，標題、牆面標籤和上一件／下一件按鈕都在 HTML。沒有 WebGL 時保留靜態版面；開啟減少動態效果時不做鏡頭漂移，換作品直接切過去。
+- three.js 與展廳程式在獨立的 chunk（gzip 約 141 KB），進到頁面後才載入，不在首屏 JS 裡。
+- 圖示是自己畫的 inline SVG（`components/ui/icons.tsx`），沒有用 lucide-react。在 Workers 上 lucide-react 會被打包成循環依賴的 server chunk，執行時 React 還沒載入，每一頁都回 500。
+- 次要文字的灰色從規格的 `#77736E` 改成 `#6B6762`：原本在紙色背景上對比只有 4.2:1，改後 5.0:1，符合 WCAG AA。
+- 字型：標題 Newsreader，內文 Instrument Sans。
+- Phase 1 的作品是 2026-11-18 從 API 抓下的 12 件公有領域作品快照（`lib/fixtures/preview-artworks.ts`），頁面上標示為 preview。搜尋、篩選、分頁先做好版面但停用，Phase 2 接上即時資料後再開放。
 
 ## 暫時無法升級的套件
 
@@ -67,3 +73,5 @@ npm run typecheck
 
 - `npm audit` 還有上游套件的警告，沒有不降版的修正：picomatch（ReDoS，所有版本都受影響，經由 vite 與 vinext 在建置時比對檔案路徑）、fflate（經由 `@vercel/og`，本專案沒有用到 OG 圖片產生）。`npm audit fix --force` 會把 vinext 降到 0.2.1，所以不採用。
 - npm 擋下了 `workerd` 的 postinstall script，目前本機預覽仍可正常執行。
+- 館方 IIIF 圖片伺服器會對自動化環境回 Cloudflare challenge（403），所以開發時看不到真實作品圖，也還沒確認圖片有沒有回 CORS 標頭（3D 展廳的貼圖需要）。圖片載不到時，3D 畫框裡是空白的打底畫布，卡片顯示 Image unavailable。需要在一般瀏覽器裡再確認。
+- 3D 展廳的效能只量過每幀成本（AMD Radeon 890M 內顯約 2 ms），沒有在實體手機上量過 fps。

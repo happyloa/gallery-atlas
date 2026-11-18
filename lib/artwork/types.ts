@@ -1,0 +1,34 @@
+/**
+ * Domain model used by the UI. Components never read the raw Art Institute of
+ * Chicago API shape; the server maps and validates upstream data into these types.
+ */
+
+/** IIIF widths the AIC image server allows. 1200 and 1686 are public-domain only. */
+export type IiifWidth = 200 | 400 | 600 | 843 | 1200 | 1686;
+
+export interface ArtworkImage {
+  /** Default display URL (843px wide, the size AIC recommends). */
+  src: string;
+  /** Width-descriptor srcset built only from allowed IIIF widths. */
+  srcSet: string;
+  /** Intrinsic width / height. Falls back to 4 / 5 when the API omits dimensions. */
+  aspectRatio: number;
+  alt: string;
+}
+
+export interface Artwork {
+  id: number;
+  title: string;
+  /** "Artist unknown" when the API has no artist. */
+  artist: string;
+  dateDisplay: string | null;
+  type: string | null;
+  medium: string | null;
+  dimensions: string | null;
+  origin: string | null;
+  creditLine: string | null;
+  image: ArtworkImage;
+  /** Canonical page on artic.edu, built from the numeric id only. */
+  sourceUrl: string;
+  isPublicDomain: true;
+}

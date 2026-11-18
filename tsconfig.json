@@ -16,7 +16,7 @@
     "incremental": true,
     "types": ["vinext/types", "node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./*"]
     }
   },
   "include": [
