@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { kvDataAdapter } from "@vinext/cloudflare/cache/kv-data-adapter";
 
 export default defineConfig(({ command }) => {
   // `AIC_FIXTURES=1 vite dev` answers museum API calls from local fixtures (end-to-end tests,
@@ -11,7 +12,9 @@ export default defineConfig(({ command }) => {
   return {
     define: fixtures ? { "process.env.AIC_FIXTURES": JSON.stringify("1") } : {},
     plugins: [
-      vinext(),
+      vinext({
+        cache: { data: kvDataAdapter() },
+      }),
       cloudflare({
         viteEnvironment: {
           name: "rsc",
