@@ -9,7 +9,7 @@ import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowLeft, Pencil, Trash, X } from "@/components/ui/icons";
+import { ArrowLeft, ArrowUpRight, Pencil, Trash, X } from "@/components/ui/icons";
 import { findExhibition, MAX_EXHIBITION_TITLE } from "@/lib/collections/schema";
 import { useArtworks } from "@/lib/collections/use-artworks";
 import {
@@ -39,6 +39,9 @@ export function ExhibitionView({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  // Set when the link could not be copied, so it can be shown for copying by hand.
+  const [shareFallback, setShareFallback] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const collectionHref = localizePath(locale, "/collection");
 
@@ -84,6 +87,23 @@ export function ExhibitionView({ id }: { id: string }) {
       setError(
         result.reason === "storage" ? dict.favorite.storage : t.nameRequired,
       );
+    }
+  };
+
+  const share = async () => {
+    const params = new URLSearchParams({
+      title: exhibition.title,
+      ids: exhibition.artworkIds.join(","),
+    });
+    const url = `${window.location.origin}${localizePath(locale, "/collection/shared")}?${params}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareFallback("");
+      setCopied(true);
+      setStatus(dict.share.copied);
+    } catch {
+      setCopied(false);
+      setShareFallback(url);
     }
   };
 
@@ -152,7 +172,13 @@ export function ExhibitionView({ id }: { id: string }) {
         </div>
 
         {!editing ? (
-          <div className="flex shrink-0 flex-wrap gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {count > 0 ? (
+              <Button variant="secondary" size="sm" onClick={share}>
+                <ArrowUpRight className="size-4" />
+                {copied ? dict.share.copied : dict.share.button}
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               size="sm"
@@ -180,6 +206,18 @@ export function ExhibitionView({ id }: { id: string }) {
       <p role="status" className="sr-only">
         {status}
       </p>
+      {shareFallback ? (
+        <div className="mt-4 flex flex-col gap-2 text-sm">
+          <label htmlFor={`${inputId}-share`}>{dict.share.copyFallback}</label>
+          <input
+            id={`${inputId}-share`}
+            readOnly
+            value={shareFallback}
+            onFocus={(event) => event.currentTarget.select()}
+            className="min-h-11 w-full border border-line bg-paper px-3 font-mono text-xs"
+          />
+        </div>
+      ) : null}
       {error ? (
         <p role="alert" className="mt-4 text-sm text-accent-deep">
           {error}

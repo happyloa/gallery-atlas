@@ -246,6 +246,30 @@ export function createExhibition(
   return { ok: true, state: { ...state, exhibitions: [exhibition, ...state.exhibitions] }, value: exhibition };
 }
 
+/**
+ * Creates an exhibition already holding `artworkIds` (a shared link being saved), in one
+ * write. Invalid and repeated ids are skipped; anything past the item limit is dropped.
+ */
+export function importExhibition(
+  state: CollectionState,
+  title: string,
+  artworkIds: readonly number[],
+  id: string,
+  now = Date.now(),
+): UpdateResult<Exhibition> {
+  const created = createExhibition(state, title, id, now);
+  if (!created.ok) return created;
+  const ids = [
+    ...new Set(artworkIds.filter((n) => Number.isInteger(n) && n > 0 && n <= 999_999_999)),
+  ].slice(0, MAX_EXHIBITION_ITEMS);
+  const exhibition: Exhibition = { ...created.value, artworkIds: ids };
+  return {
+    ok: true,
+    state: { ...state, exhibitions: [exhibition, ...state.exhibitions] },
+    value: exhibition,
+  };
+}
+
 /** Replaces one exhibition, leaving every other one untouched. */
 function updateExhibition(
   state: CollectionState,

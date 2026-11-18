@@ -58,6 +58,8 @@ export const rawArtworkExtrasSchema = z.object({
   provenance_text: lenient(z.string()),
   exhibition_history: lenient(z.string()),
   publication_history: lenient(z.string()),
+  gallery_id: lenient(z.number().int()),
+  sound_ids: tagList,
 });
 
 export const rawArtistSchema = z.object({

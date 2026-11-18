@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import {
+  AudioGuide,
+  FurtherReading,
   LookFurther,
   MoreByArtist,
   ObjectRecord,
@@ -222,6 +224,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
             <p className="text-xs text-muted">{t.imageCredit}</p>
             {artwork.zoomSrc ? (
               <ZoomDialog
+                tileSource={artwork.tileSource}
                 src={artwork.zoomSrc}
                 alt={artwork.image.alt}
                 title={artwork.title}
@@ -284,8 +287,11 @@ export default async function ArtworkPage({ params }: { params: Params }) {
             <Fact label={t.origin} value={artwork.origin} />
             <Fact label={t.creditLine} value={artwork.creditLine} />
           </dl>
-          <OnView artwork={artwork} dict={dict} />
+          <OnView artwork={artwork} locale={locale} dict={dict} />
           <LookFurther artwork={artwork} locale={locale} dict={dict} />
+          <Suspense fallback={null}>
+            <AudioGuide artwork={artwork} dict={dict} />
+          </Suspense>
         </div>
       </Container>
 
@@ -327,6 +333,12 @@ export default async function ArtworkPage({ params }: { params: Params }) {
 
       <Container className="mt-16 sm:mt-24">
         <ObjectRecord artwork={artwork} dict={dict} />
+      </Container>
+
+      <Container className="mt-16 sm:mt-24">
+        <Suspense fallback={null}>
+          <FurtherReading topic={artwork.artist} dict={dict} />
+        </Suspense>
       </Container>
 
       <Container className="mt-16 sm:mt-24">

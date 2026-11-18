@@ -55,6 +55,8 @@ export const ARTWORK_DETAIL_FIELDS = [
   "provenance_text",
   "exhibition_history",
   "publication_history",
+  "gallery_id",
+  "sound_ids",
 ] as const;
 
 /**
@@ -139,6 +141,9 @@ export const TAG_FIELDS = {
   theme: "theme_titles.keyword",
 } as const;
 
+/** Place-of-origin filter field (values are matched case-insensitively upstream). */
+export const PLACE_FIELD = "place_of_origin.keyword";
+
 export type TagKind = keyof typeof TAG_FIELDS;
 
 /**
@@ -166,4 +171,30 @@ export type EntranceSlug = (typeof ENTRANCES)[number]["slug"];
 /** Canonical artist page on the museum's site. Built from the numeric id only. */
 export function museumArtistUrl(id: number): string {
   return `https://www.artic.edu/artists/${id}`;
+}
+
+/** Result orders offered in Explore. "relevance" is the default and stays out of URLs. */
+export const SORTS = ["relevance", "oldest", "newest"] as const;
+export type SortSlug = (typeof SORTS)[number];
+
+/**
+ * When sorting by date, ignore start years outside this span: a few records carry
+ * placeholder values (e.g. -1824528578) that would otherwise always sort first.
+ */
+export const SANE_YEARS = { from: -8000, to: 2030 } as const;
+
+/** Museum exhibitions per page on the exhibitions index. */
+export const EXHIBITIONS_PAGE_SIZE = 12;
+
+/** Most audio recordings listed for one work. */
+export const MAX_SOUNDS = 4;
+
+/** Works in one shared exhibition link; matches the limit of a saved exhibition. */
+export const MAX_SHARED_WORKS = 100;
+
+/** Articles and publications listed under "Further reading". */
+export const MAX_READING = 3;
+
+export function museumArticleUrl(id: number): string {
+  return `https://www.artic.edu/articles/${id}`;
 }

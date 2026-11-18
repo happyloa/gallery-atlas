@@ -22,6 +22,9 @@ export const en = {
     switchLanguage: "中文",
     switchLanguageLabel: "Switch to Traditional Chinese",
     opensInNewTab: " (opens in a new tab)",
+    exhibitions: "Exhibitions",
+    map: "Map",
+    random: "Random work",
   },
   footer: {
     disclaimer:
@@ -109,6 +112,13 @@ export const en = {
       theme: "Theme: {value}",
     },
     removeFilter: "Remove filter: {label}",
+    sortLabel: "Order",
+    sorts: {
+      relevance: "Best match",
+      oldest: "Oldest first",
+      newest: "Newest first",
+    },
+    placeFilter: "Origin: {value}",
   },
   types: {
     painting: "Painting",
@@ -153,6 +163,7 @@ export const en = {
     intro:
       "Pick a movement, a century or a colour. Each one opens the collection with that filter already set.",
     worksCount: "{count} works",
+    worksCountOne: "1 work",
     erasHeading: "By century",
     colorsHeading: "By colour",
     colorsHint: "Sorted by each work’s dominant colour.",
@@ -169,6 +180,64 @@ export const en = {
     bioCredit: "Biography: Art Institute of Chicago, CC BY 4.0.",
     metaDescription:
       "Public-domain works by {name} from the Art Institute of Chicago.",
+  },
+  gallery: {
+    eyebrow: "Gallery at the Art Institute of Chicago",
+    floor: "Floor {floor}",
+    closed: "Closed at the moment",
+    worksHeading: "Public-domain works on view here",
+    noWorks: "The museum doesn’t list any public-domain works on view in this gallery right now.",
+    metaDescription: "Public-domain works on view in {gallery} at the Art Institute of Chicago.",
+  },
+  museumExhibitions: {
+    eyebrow: "At the museum",
+    heading: "Exhibitions",
+    intro:
+      "Exhibitions the Art Institute of Chicago has held or has planned, each with the public-domain works it lists.",
+    status: {
+      current: "On now",
+      upcoming: "Coming up",
+      past: "Past",
+    },
+    dates: "{start} – {end}",
+    from: "From {start}",
+    until: "Until {end}",
+    worksHeading: "Public-domain works in this exhibition",
+    noWorks: "None of the works the museum lists for this exhibition are public domain with an image.",
+    worksCount: "{count} works listed",
+    worksCountOne: "1 work listed",
+    viewAtMuseum: "Exhibition page at the Art Institute of Chicago",
+    textCredit: "Text: Art Institute of Chicago.",
+    metaDescription: "Exhibitions at the Art Institute of Chicago, with their public-domain works.",
+  },
+  map: {
+    eyebrow: "Places of origin",
+    heading: "Where the works come from",
+    intro:
+      "Each circle is a place the museum records as a work’s origin, sized by how many public-domain works came from there.",
+    listHeading: "All places",
+    note: "Positions are approximate centres. Places the museum records only loosely, such as “Europe”, are in the list but not on the map.",
+    unavailable: "The counts couldn’t be loaded just now.",
+    metaDescription: "Public-domain works from the Art Institute of Chicago, by place of origin.",
+  },
+  daily: {
+    eyebrow: "Today’s work",
+    note: "A different highlight from the collection each day.",
+    view: "Look closer",
+    random: "Show me a random work",
+  },
+  share: {
+    button: "Share link",
+    copied: "Link copied.",
+    copyFallback: "Copy this link:",
+    eyebrow: "Shared exhibition",
+    save: "Save to My Exhibitions",
+    saved: "Saved as “{title}”.",
+    viewSaved: "Open it",
+    missing: "{count} of the works in this link can’t be shown any more.",
+    invalidTitle: "This link doesn’t hold an exhibition.",
+    invalidBody: "It may have been cut short when it was copied. Ask for the link again.",
+    metaTitle: "Shared exhibition",
   },
   detail: {
     back: "Back to Discover",
@@ -210,6 +279,16 @@ export const en = {
     restrictedEyebrow: "Not shown here",
     restrictedTitle: "This work can’t be shown here.",
     restrictedBody: "The museum doesn’t list it as public domain, or it has no image we can show. You can still find it on the museum’s website.",
+    listen: "Listen",
+    audioStop: "Audio guide, stop {stop}",
+    audioCredit:
+      "Audio: Art Institute of Chicago, in English. The museum doesn’t publish transcripts for these recordings.",
+    furtherReading: "Further reading",
+    readingKinds: {
+      article: "Article",
+      publication: "Publication",
+    },
+    moreFromPlace: "More from {place}",
   },
   zoom: {
     dialogLabel: "Full image: {title}",
@@ -217,6 +296,8 @@ export const en = {
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
     maxSize: "The largest size the museum makes available ({width} px wide).",
+    fit: "Fit to screen",
+    deepHint: "Scroll, pinch or use + and − to zoom in; drag to move around.",
   },
   favorite: {
     save: "Save",

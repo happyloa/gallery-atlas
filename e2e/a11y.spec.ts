@@ -80,6 +80,11 @@ for (const path of [
   "/en/artworks/424242",
   "/en/artists/40810",
   "/zh-tw?color=blue&era=1800s&style=Impressionism",
+  "/en/exhibitions",
+  "/en/exhibitions/9001",
+  "/zh-tw/map",
+  "/en/galleries/2147478672",
+  "/en/collection/shared?title=Evening%20light&ids=27992,28560",
 ]) {
   test(`no WCAG A/AA violations on ${path}`, async ({ page }) => {
     await gotoReady(page, path);

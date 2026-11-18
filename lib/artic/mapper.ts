@@ -4,7 +4,12 @@
  * has a valid image id AND the IIIF base checks out. Everything else maps to null.
  */
 import type { Artist, Artwork, ArtworkDetail } from "@/lib/artwork/types";
-import { MAX_TAG_LENGTH, museumArtistUrl, museumArtworkUrl } from "./config";
+import {
+  MAX_SOUNDS,
+  MAX_TAG_LENGTH,
+  museumArtistUrl,
+  museumArtworkUrl,
+} from "./config";
 import type { TagKind } from "./config";
 import { colorForHsl, eraForYear } from "./filters";
 import {
@@ -22,6 +27,9 @@ import {
 } from "./schema";
 
 const MAX_TEXT_LENGTH = 600;
+
+/** Sound ids are UUIDs; anything else is not sent upstream. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Trims, collapses whitespace, caps length; empty → null. */
 function cleanText(
@@ -124,6 +132,7 @@ export function toArtworkDetail(input: unknown, iiifBase: string | null): Artwor
     description: parseDescription(raw.description),
     // toArtwork already checked public-domain status and the image id.
     zoomSrc: iiifUrl(iiifBase, raw.image_id as string, 1686, true),
+    tileSource: `${iiifBase}/${raw.image_id as string}/info.json`,
     artistId: extras.artist_id ?? null,
     era: eraForYear(extras.date_start),
     dominantColor: color
@@ -139,8 +148,14 @@ export function toArtworkDetail(input: unknown, iiifBase: string | null): Artwor
     },
     onView:
       extras.is_on_view === true
-        ? { gallery: cleanText(extras.gallery_title, 120) }
+        ? {
+            gallery: cleanText(extras.gallery_title, 120),
+            galleryId: extras.gallery_id ?? null,
+          }
         : null,
+    soundIds: (extras.sound_ids ?? [])
+      .filter((id): id is string => typeof id === "string" && UUID.test(id))
+      .slice(0, MAX_SOUNDS),
     record: {
       inscriptions: cleanParagraphs(extras.inscriptions),
       provenance: cleanParagraphs(extras.provenance_text),

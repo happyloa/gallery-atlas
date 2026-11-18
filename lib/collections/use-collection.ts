@@ -6,6 +6,7 @@ import {
   addToExhibition,
   createExhibition,
   deleteExhibition,
+  importExhibition,
   isFavorite,
   removeFavorite,
   removeFromExhibition,
@@ -70,4 +71,9 @@ export const exhibitionActions = {
     artworkIds: number | readonly number[],
   ): WriteResult<Exhibition> =>
     update((state) => removeFromExhibition(state, id, artworkIds)),
+  importShared: (
+    title: string,
+    artworkIds: readonly number[],
+  ): WriteResult<Exhibition> =>
+    update((state) => importExhibition(state, title, artworkIds, newId())),
 };

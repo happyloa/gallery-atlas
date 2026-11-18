@@ -15,7 +15,7 @@ test("search, open a work, save it, and find it again after a reload", async ({
   ).toBeVisible();
 
   // Search updates the URL (debounced), and the results follow it.
-  const search = page.getByRole("searchbox", { name: "Search artworks" });
+  const search = page.getByRole("combobox", { name: "Search artworks" });
   await search.fill("jatte");
   await expect(page).toHaveURL(/\/en\?q=jatte/);
   const results = page.locator("#explore");
@@ -41,7 +41,9 @@ test("search, open a work, save it, and find it again after a reload", async ({
   ).toBe(true);
   // The CC BY description is shown with its credit.
   await expect(page.getByText("Fixture description for")).toBeVisible();
-  await expect(page.getByText("Description: Art Institute of Chicago, CC BY 4.0.")).toBeVisible();
+  await expect(
+    page.getByText("Description: Art Institute of Chicago, CC BY 4.0."),
+  ).toBeVisible();
 
   // Save it.
   const save = page.getByRole("button", { name: /^Save/ });
@@ -82,7 +84,7 @@ test("search state lives in the URL: direct links, filters and the back button",
   await gotoReady(page, "/en?q=monet&type=painting");
   const explore = page.locator("#explore");
   await expect(
-    page.getByRole("searchbox", { name: "Search artworks" }),
+    page.getByRole("combobox", { name: "Search artworks" }),
   ).toHaveValue("monet");
   await expect(explore.getByRole("link", { name: "Painting" })).toHaveAttribute(
     "aria-current",
@@ -143,13 +145,29 @@ test("the full-image dialog works from the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: `Full image: ${JATTE}` });
   await expect(dialog).toBeVisible();
+  // Deep zoom opens on the IIIF tiles, and the zoom buttons drive it.
+  const zoomIn = dialog.getByRole("button", { name: "Zoom in" });
+  await expect(zoomIn).toBeEnabled();
+  await expect(dialog.locator("canvas")).toHaveCount(1);
+  await zoomIn.click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(open).toBeFocused();
+});
+
+test("the full-image dialog falls back to one large image without tiles", async ({
+  page,
+}) => {
+  await page.route("**/info.json", (route) => route.fulfill({ status: 404 }));
+  await gotoReady(page, "/en/artworks/27992");
+  await page.getByRole("button", { name: "View full image" }).click();
+  const dialog = page.getByRole("dialog", { name: `Full image: ${JATTE}` });
   await expect(dialog.locator("img")).toHaveAttribute(
     "src",
     /\/full\/1686,\/0\/default\.jpg$/,
   );
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  await expect(open).toBeFocused();
+  await dialog.getByRole("button", { name: "Zoom in" }).click();
+  await expect(dialog.getByRole("button", { name: "Zoom out" })).toBeEnabled();
 });
 
 test("switching language keeps the page and the search", async ({ page }) => {
@@ -162,7 +180,7 @@ test("switching language keeps the page and the search", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 2, name: "探索館藏" }),
   ).toBeVisible();
-  await expect(page.getByRole("searchbox", { name: "搜尋作品" })).toHaveValue(
+  await expect(page.getByRole("combobox", { name: "搜尋作品" })).toHaveValue(
     "monet",
   );
 

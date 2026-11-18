@@ -68,6 +68,15 @@ export function SiteFooter({
               {t.aboutLink}
             </Link>
           </p>
+          <p className="mt-2 text-sm">
+            {/* A plain link: every visit should reach the server for a new pick. */}
+            <a
+              href={`/${locale}/random`}
+              className="underline-offset-4 hover:underline"
+            >
+              {dict.site.random}
+            </a>
+          </p>
         </div>
       </Container>
 

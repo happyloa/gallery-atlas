@@ -3,7 +3,7 @@
  * details so client components can import it without pulling either into the bundle.
  */
 import type { Locale } from "@/lib/i18n/config";
-import type { ArtworkTypeSlug, ColorSlug, EraSlug } from "./config";
+import type { ArtworkTypeSlug, ColorSlug, EraSlug, SortSlug } from "./config";
 
 export interface SearchQuery {
   q: string;
@@ -14,6 +14,9 @@ export interface SearchQuery {
   style: string | null;
   subject: string | null;
   theme: string | null;
+  /** Place of origin, as the museum records it (matched case-insensitively). */
+  place: string | null;
+  sort: SortSlug;
   page: number;
 }
 
@@ -26,6 +29,8 @@ export const EMPTY_QUERY: SearchQuery = {
   style: null,
   subject: null,
   theme: null,
+  place: null,
+  sort: "relevance",
   page: 1,
 };
 
@@ -37,6 +42,7 @@ export const FILTER_KEYS = [
   "style",
   "subject",
   "theme",
+  "place",
 ] as const;
 
 export type FilterKey = (typeof FILTER_KEYS)[number];
@@ -49,6 +55,7 @@ export function toSearchParams(query: Partial<SearchQuery>): URLSearchParams {
     const value = query[key];
     if (value) params.set(key, value);
   }
+  if (query.sort && query.sort !== "relevance") params.set("sort", query.sort);
   if (query.page && query.page > 1) params.set("page", String(query.page));
   return params;
 }

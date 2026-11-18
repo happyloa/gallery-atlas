@@ -3,15 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
 import { ArtworkWall } from "@/components/artwork/artwork-wall";
+import { FurtherReading } from "@/components/artwork/detail-extras";
 import { ResultsError } from "@/components/discover/results-error";
-import type { ResultsErrorReason } from "@/components/discover/results-error";
 import { Pagination } from "@/components/discover/pagination";
 import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { ArrowLeft, ArrowUpRight } from "@/components/ui/icons";
 import { getArtist, searchArtworks } from "@/lib/artic/artworks";
-import { isAicError } from "@/lib/artic/client";
+import { describeFailure } from "@/lib/artic/error-reason";
 import { EMPTY_QUERY, parseId, parseSearchQuery } from "@/lib/artic/queries";
 import type { Artist } from "@/lib/artwork/types";
 import {
@@ -23,7 +23,7 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import { format } from "@/lib/i18n/format";
+import { format, formatCount } from "@/lib/i18n/format";
 import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string; id: string }>;
@@ -176,6 +176,12 @@ export default async function ArtistPage({
           </Suspense>
         </section>
       </Container>
+
+      <Container className="mt-20 sm:mt-28">
+        <Suspense fallback={null}>
+          <FurtherReading topic={artist.name} dict={dict} />
+        </Suspense>
+      </Container>
     </article>
   );
 }
@@ -196,18 +202,7 @@ async function ArtistWorks({
   try {
     result = await searchArtworks(query, {}, { artistId });
   } catch (caught) {
-    const reason: ResultsErrorReason =
-      isAicError(caught) && caught.code === "rate_limited"
-        ? "rate_limited"
-        : isAicError(caught) && caught.code === "timeout"
-          ? "timeout"
-          : "generic";
-    return (
-      <ResultsError
-        reason={reason}
-        retryable={isAicError(caught) ? caught.retryable : true}
-      />
-    );
+    return <ResultsError {...describeFailure(caught)} />;
   }
 
   if (result.total === 0)
@@ -218,7 +213,12 @@ async function ArtistWorks({
   return (
     <>
       <p role="status" className="mt-4 text-sm text-muted">
-        {format(dict.ways.worksCount, { count: number.format(result.total) })}
+        {formatCount(
+          dict.ways.worksCountOne,
+          dict.ways.worksCount,
+          result.total,
+          number.format(result.total),
+        )}
       </p>
       <ArtworkWall
         artworks={result.artworks}

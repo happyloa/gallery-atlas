@@ -10,11 +10,11 @@
 
 ## 功能
 
-- 首頁的 three.js 3D 展廳，掛著館方精選作品
-- 搜尋館藏，依類型、年代、主色、館方標籤篩選
-- 作品頁：大圖、作品資料與說明、館藏紀錄、是否在館內展出
-- 藝術家頁
-- 收藏與自訂展覽，存在瀏覽器，不需要帳號
+- 首頁的 three.js 3D 展廳，掛著館方精選作品；每日一件、隨機一件
+- 搜尋館藏，依類型、年代、主色、產地、館方標籤篩選，可依年代排序，有輸入建議
+- 作品頁：深度縮放、作品資料與說明、館藏紀錄、語音導覽、展出位置、延伸閱讀
+- 藝術家頁、展廳頁、館方展覽、產地地圖
+- 收藏與自訂展覽，存在瀏覽器，不需要帳號；展覽可以用連結分享
 
 ## 技術
 
@@ -63,7 +63,7 @@ E2E 會自己啟動 dev server（port 5174），跑之前要先停掉 `npm run d
 
 3. `npm run deploy`。第一次部署會自動建立 KV namespace。
 
-要 push 後自動部署：Cloudflare 後台 Workers & Pages → gallery-atlas → Settings → Builds，連上這個 repo 的 `main`。Build command 留空，Deploy command 填 `npm run deploy`。
+Worker 已用 Workers Builds 連上這個 repo：push 到 `main` 會自動建置並部署（Deploy command 是 `npm run deploy`）。
 
 ## 資料與授權
 
@@ -75,4 +75,6 @@ E2E 會自己啟動 dev server（port 5174），跑之前要先停掉 `npm run d
 
 - 館方圖片伺服器會擋自動化環境，本機開發與 E2E 看不到真實作品圖；一般瀏覽器正常。
 - 館方 API 的 CDN 會擋掉超過約 2,000 字元的網址，篩選條件太多時網站會請使用者減少條件。
+- 館方的錄音沒有逐字稿，語音導覽只有音檔。
+- 3D 展廳只在模擬手機（CPU 降速 6 倍）下量過，維持 60 fps；沒有在實體手機的 GPU 上量過。
 - TypeScript 停在 6.0、ESLint 停在 9，等 typescript-eslint 與 eslint-plugin-jsx-a11y 支援新版。

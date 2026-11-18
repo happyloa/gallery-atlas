@@ -18,8 +18,11 @@ import {
   MAX_QUERY_LENGTH,
   MAX_TAG_LENGTH,
   PAGE_SIZE,
+  PLACE_FIELD,
+  SANE_YEARS,
+  SORTS,
 } from "./config";
-import type { ArtworkTypeSlug, ColorSlug, EraSlug } from "./config";
+import type { ArtworkTypeSlug, ColorSlug, EraSlug, SortSlug } from "./config";
 import {
   colorClauses,
   DISPLAYABLE,
@@ -60,6 +63,7 @@ const eraSchema = z.enum(ERAS.map((e) => e.slug) as [EraSlug, ...EraSlug[]]);
 const colorSchema = z.enum(
   COLORS.map((c) => c.slug) as [ColorSlug, ...ColorSlug[]],
 );
+const sortSchema = z.enum(SORTS as unknown as [SortSlug, ...SortSlug[]]);
 const pageSchema = z.string().regex(/^\d{1,6}$/);
 
 /** Collapses whitespace and caps the keyword at the maximum length. */
@@ -97,6 +101,8 @@ export function parseSearchQuery(params: RawParams): SearchQueryResult {
     style: tag("style"),
     subject: tag("subject"),
     theme: tag("theme"),
+    place: tag("place"),
+    sort: pick(sortSchema, "sort") ?? "relevance",
   };
 
   const rawPage = first(params, "page");
@@ -141,6 +147,8 @@ const KEYWORD_FIELDS = [
 export interface SearchScope {
   /** Only works by this artist (AIC agent id). */
   artistId?: number;
+  /** Only works on view in this gallery of the museum. */
+  galleryId?: number;
   /** Leave this work out, e.g. the one already on screen. */
   excludeId?: number;
   limit?: number;
@@ -163,8 +171,18 @@ export function buildSearchRequest(
   if (query.style) filter.push(tagClause("style", query.style));
   if (query.subject) filter.push(tagClause("subject", query.subject));
   if (query.theme) filter.push(tagClause("theme", query.theme));
+  if (query.place) filter.push({ term: { [PLACE_FIELD]: query.place } });
+  if (query.sort !== "relevance")
+    filter.push({
+      range: { date_start: { gte: SANE_YEARS.from, lte: SANE_YEARS.to } },
+    });
   if (scope.artistId !== undefined)
     filter.push({ term: { artist_id: scope.artistId } });
+  if (scope.galleryId !== undefined)
+    filter.push(
+      { term: { gallery_id: scope.galleryId } },
+      { term: { is_on_view: true } },
+    );
 
   const bool: Record<string, unknown> = { filter };
   if (scope.excludeId !== undefined)
@@ -190,6 +208,9 @@ export function buildSearchRequest(
     fields: ARTWORK_FIELDS.join(","),
     limit: scope.limit ?? PAGE_SIZE,
     page: query.page,
+    ...(query.sort === "relevance"
+      ? {}
+      : { sort: [{ date_start: query.sort === "oldest" ? "asc" : "desc" }] }),
   };
 }
 
@@ -276,3 +297,10 @@ export function parseId(
 
 /** Artwork ids follow the same rule as any other record id. */
 export const parseArtworkId = parseId;
+
+/** Gallery ids run into the billions (e.g. 2147478672), past the 9-digit artwork rule. */
+export function parseGalleryId(value: string | undefined | null): number | null {
+  if (!value || !/^\d{1,10}$/.test(value)) return null;
+  const id = Number(value);
+  return id > 0 && id <= 2_147_483_647 ? id : null;
+}

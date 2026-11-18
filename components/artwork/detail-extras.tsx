@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { ArtworkWall } from "@/components/artwork/artwork-wall";
 import { Reveal } from "@/components/motion/reveal";
-import { ArrowRight, Plus } from "@/components/ui/icons";
+import { ArrowRight, ArrowUpRight, Plus } from "@/components/ui/icons";
 import { getMoreByArtist } from "@/lib/artic/artworks";
+import { UNKNOWN_ARTIST } from "@/lib/artic/mapper";
+import { getFurtherReading, getSounds } from "@/lib/artic/museum";
+import { placeByKey } from "@/lib/geo/places";
+import { EXTERNAL_REL } from "@/lib/utils";
 import type { TagKind } from "@/lib/artic/config";
 import { searchHref } from "@/lib/artic/search-url";
 import type { ArtworkDetail } from "@/lib/artwork/types";
@@ -19,12 +23,16 @@ const tagChip =
 /** Whether the work is hanging in Chicago now. Renders nothing when the API doesn't say. */
 export function OnView({
   artwork,
+  locale,
   dict,
 }: {
   artwork: ArtworkDetail;
+  locale: Locale;
   dict: Dictionary;
 }) {
   const t = dict.detail;
+  const gallery = artwork.onView?.gallery;
+  const galleryId = artwork.onView?.galleryId;
   return (
     <p className="mt-6 flex items-center gap-3 text-sm text-ink/80">
       <span
@@ -35,11 +43,34 @@ export function OnView({
             : "size-2 rounded-full border border-ink/40"
         }
       />
-      {artwork.onView
-        ? artwork.onView.gallery
-          ? format(t.onViewGallery, { gallery: artwork.onView.gallery })
-          : t.onView
-        : t.notOnView}
+      {artwork.onView ? (
+        gallery ? (
+          <span>
+            {t.onViewGallery.split("{gallery}").flatMap((part, index) =>
+              index === 0
+                ? [part]
+                : [
+                    galleryId ? (
+                      <Link
+                        key="gallery"
+                        href={localizePath(locale, `/galleries/${galleryId}`)}
+                        className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+                      >
+                        {gallery}
+                      </Link>
+                    ) : (
+                      gallery
+                    ),
+                    part,
+                  ],
+            )}
+          </span>
+        ) : (
+          t.onView
+        )
+      ) : (
+        t.notOnView
+      )}
     </p>
   );
 }
@@ -57,7 +88,8 @@ export function LookFurther({
   const t = dict.detail;
   const groups = TAG_KINDS.filter((kind) => artwork.tags[kind].length > 0);
   const color = artwork.dominantColor;
-  if (!artwork.era && !color && groups.length === 0) return null;
+  if (!artwork.era && !artwork.origin && !color && groups.length === 0)
+    return null;
 
   return (
     <section aria-labelledby="look-further" className="mt-12">
@@ -89,6 +121,23 @@ export function LookFurther({
               ) : null}
             </div>
           </div>
+        ) : null}
+        {artwork.origin ? (
+          <Link
+            href={searchHref(locale, { place: artwork.origin })}
+            prefetch={false}
+            className="group inline-flex items-center gap-2 text-sm underline-offset-4 hover:underline"
+          >
+            {format(t.moreFromPlace, {
+              place:
+                placeByKey(artwork.origin)?.[locale === "en" ? "en" : "zh"] ??
+                artwork.origin,
+            })}
+            <ArrowRight
+              aria-hidden="true"
+              className="size-4 transition-transform duration-200 ease-gallery group-hover:translate-x-0.5"
+            />
+          </Link>
         ) : null}
         {artwork.era ? (
           <Link
@@ -228,5 +277,111 @@ export async function MoreByArtist({
       </Reveal>
       <ArtworkWall artworks={artworks} locale={locale} className="mt-12" />
     </section>
+  );
+}
+
+/** The museum's recordings for this work: audio guide stops and talks. */
+export async function AudioGuide({
+  artwork,
+  dict,
+}: {
+  artwork: ArtworkDetail;
+  dict: Dictionary;
+}) {
+  const sounds = await getSounds(artwork.soundIds);
+  if (sounds.length === 0) return null;
+  const t = dict.detail;
+  return (
+    <section aria-labelledby="listen" className="mt-12">
+      <h2
+        id="listen"
+        className="text-xs font-medium tracking-[0.18em] text-accent uppercase"
+      >
+        {t.listen}
+      </h2>
+      <ul className="mt-4 space-y-4">
+        {sounds.map((sound) => {
+          const label =
+            sound.stop !== null
+              ? format(t.audioStop, { stop: sound.stop })
+              : sound.title;
+          return (
+            <li key={sound.id}>
+              <p
+                lang={sound.stop !== null ? undefined : "en"}
+                className="text-sm text-ink/85"
+              >
+                {label}
+              </p>
+              {/* Recordings stream from artic.edu only when played. The museum publishes no
+                  captions or transcripts for them, which the credit below says plainly. */}
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio
+                controls
+                preload="none"
+                src={sound.src}
+                aria-label={label}
+                className="mt-2 h-10 w-full"
+              />
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-3 text-xs text-muted">{t.audioCredit}</p>
+    </section>
+  );
+}
+
+/** Articles and publications on artic.edu that mention the artist (or the work). */
+export async function FurtherReading({
+  topic,
+  dict,
+}: {
+  topic: string;
+  dict: Dictionary;
+}) {
+  if (!topic || topic === UNKNOWN_ARTIST) return null;
+  const items = await getFurtherReading(topic);
+  if (items.length === 0) return null;
+  const t = dict.detail;
+  return (
+    <Reveal
+      as="section"
+      aria-labelledby="further-reading"
+      className="grid gap-6 border-t border-line pt-10 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-12"
+    >
+      <h2
+        id="further-reading"
+        className="text-xs font-medium tracking-[0.18em] text-accent uppercase md:pt-2"
+      >
+        {t.furtherReading}
+      </h2>
+      <ul className="max-w-3xl divide-y divide-line border-y border-line">
+        {items.map((item) => (
+          <li key={item.url}>
+            <a
+              href={item.url}
+              target="_blank"
+              rel={EXTERNAL_REL}
+              className="group flex items-baseline justify-between gap-6 py-4"
+            >
+              <span>
+                <span className="block text-xs tracking-[0.12em] text-muted uppercase">
+                  {t.readingKinds[item.kind]}
+                </span>
+                <span
+                  lang="en"
+                  className="mt-1 block font-serif text-xl leading-snug group-hover:underline group-hover:underline-offset-4"
+                >
+                  {item.title}
+                </span>
+              </span>
+              <ArrowUpRight aria-hidden="true" className="size-4 shrink-0" />
+              <span className="sr-only">{dict.site.opensInNewTab}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </Reveal>
   );
 }

@@ -12,7 +12,26 @@ export const test = base.extend<{ iiif: string[] }>({
     async ({ page }, use) => {
       const requested: string[] = [];
       await page.route("https://www.artic.edu/iiif/**", async (route) => {
-        requested.push(route.request().url());
+        const url = route.request().url();
+        requested.push(url);
+        // Deep zoom asks for the IIIF description first; answer with a small tiled image.
+        if (url.endsWith("/info.json")) {
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: JSON.stringify({
+              "@context": "http://iiif.io/api/image/2/context.json",
+              "@id": url.slice(0, -"/info.json".length),
+              protocol: "http://iiif.io/api/image",
+              width: 2000,
+              height: 1340,
+              tiles: [{ width: 512, scaleFactors: [1, 2, 4] }],
+              profile: ["http://iiif.io/api/image/2/level2.json"],
+            }),
+          });
+          return;
+        }
         await route.fulfill({
           status: 200,
           contentType: "image/png",

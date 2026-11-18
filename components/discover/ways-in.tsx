@@ -3,6 +3,7 @@ import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { ArrowRight } from "@/components/ui/icons";
+import { DailyWork } from "./daily-work";
 import { COLORS, ENTRANCES, ERAS } from "@/lib/artic/config";
 import { getCollectionOverview } from "@/lib/artic/overview";
 import { searchHref } from "@/lib/artic/search-url";
@@ -10,7 +11,7 @@ import { fitClass } from "@/lib/artwork/fit";
 import { LOCALE_TAGS } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import { format } from "@/lib/i18n/format";
+import { formatCount } from "@/lib/i18n/format";
 
 /** Cover cells are square; works keep their own proportions inside. */
 const COVER_RATIO = 1;
@@ -32,13 +33,14 @@ export async function WaysIn({
   const t = dict.ways;
   const number = new Intl.NumberFormat(LOCALE_TAGS[locale]);
   const works = (count: number) =>
-    format(t.worksCount, { count: number.format(count) });
+    formatCount(t.worksCountOne, t.worksCount, count, number.format(count));
   const maxEra = Math.max(1, ...ERAS.map((e) => overview.eras[e.slug]));
 
   return (
     <section aria-labelledby="ways-heading" className="bg-paper-deep">
       <Container className="py-24 sm:py-32">
-        <Reveal className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-end lg:gap-16">
+        <DailyWork locale={locale} dict={dict} />
+        <Reveal className="mt-20 grid gap-6 sm:mt-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-end lg:gap-16">
           <div>
             <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
               {t.eyebrow}

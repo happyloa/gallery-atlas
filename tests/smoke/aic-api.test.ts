@@ -11,6 +11,17 @@ import {
   getMoreByArtist,
   searchArtworks,
 } from "@/lib/artic/artworks";
+import {
+  getFurtherReading,
+  getGallery,
+  getMuseumExhibition,
+  getMuseumExhibitions,
+  getPlaceCounts,
+  getRandomArtworkId,
+  getSounds,
+  getSuggestions,
+  getWorkOfTheDayId,
+} from "@/lib/artic/museum";
 import { getCollectionOverview } from "@/lib/artic/overview";
 import { EMPTY_QUERY } from "@/lib/artic/search-url";
 
@@ -56,7 +67,10 @@ describe("Art Institute of Chicago API (live)", () => {
 
   it("reads an artist and more of their works", async () => {
     const lookup = await getArtist(40810);
-    expect(lookup).toMatchObject({ status: "ok", artist: { name: "Georges Seurat" } });
+    expect(lookup).toMatchObject({
+      status: "ok",
+      artist: { name: "Georges Seurat" },
+    });
     const more = await getMoreByArtist(40810, 27992);
     expect(more.artworks.length).toBeGreaterThan(0);
     expect(more.artworks.some((a) => a.id === 27992)).toBe(false);
@@ -89,5 +103,39 @@ describe("Art Institute of Chicago API (live)", () => {
     expect(overview?.entrances.impressionism.cover).not.toBeNull();
     expect(overview?.eras["1800s"]).toBeGreaterThan(10000);
     expect(overview?.colors?.blue).toBeGreaterThan(100);
+  });
+
+  it("reads the recordings, gallery and reading for a well-known work", async () => {
+    const sounds = await getSounds(["d9683532-66fd-67c3-5588-021527d115af"]);
+    expect(sounds[0]?.src.startsWith("https://www.artic.edu/assets/")).toBe(
+      true,
+    );
+    const gallery = await getGallery(2147478672);
+    expect(gallery).toMatchObject({
+      status: "ok",
+      gallery: { name: "Gallery 240" },
+    });
+    const reading = await getFurtherReading("Georges Seurat");
+    expect(reading.length).toBeGreaterThan(0);
+  });
+
+  it("lists museum exhibitions and reads one", async () => {
+    const page = await getMuseumExhibitions(1);
+    expect(page.exhibitions.length).toBeGreaterThan(0);
+    const first = page.exhibitions[0];
+    if (!first) return;
+    const lookup = await getMuseumExhibition(first.id);
+    expect(lookup).toMatchObject({
+      status: "ok",
+      exhibition: { id: first.id },
+    });
+  });
+
+  it("suggests, picks random and daily works, and counts places", async () => {
+    expect(await getSuggestions("monet")).toContain("Claude Monet");
+    expect(await getRandomArtworkId(42)).toBeGreaterThan(0);
+    expect(await getWorkOfTheDayId(new Date())).toBeGreaterThan(0);
+    const places = await getPlaceCounts();
+    expect(places?.get("france")).toBeGreaterThan(1000);
   });
 });

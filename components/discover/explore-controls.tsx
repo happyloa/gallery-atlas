@@ -9,7 +9,9 @@ import {
   COLORS,
   ERAS,
   MAX_QUERY_LENGTH,
+  SORTS,
 } from "@/lib/artic/config";
+import { placeByKey } from "@/lib/geo/places";
 import type { TagKind } from "@/lib/artic/config";
 import {
   FILTER_KEYS,
@@ -26,6 +28,8 @@ import { cn } from "@/lib/utils";
 const DEBOUNCE_MS = 450;
 /** Single letters match almost everything; wait for a second one before searching. */
 const MIN_AUTO_LENGTH = 2;
+/** Suggestions are fetched sooner than the search itself runs. */
+const SUGGEST_DELAY_MS = 200;
 
 const TAG_KINDS: TagKind[] = ["style", "subject", "theme"];
 
@@ -60,6 +64,37 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
   /** The current search with some settings changed, back on page 1. */
   const hrefWith = (patch: Partial<SearchQuery>) =>
     searchHref(locale, { ...query, ...patch, page: 1 });
+
+  // Titles and artists that start like what is typed, offered through a <datalist>.
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    const prefix = clean(value);
+    if (prefix.length < MIN_AUTO_LENGTH) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/suggest?q=${encodeURIComponent(prefix)}`, {
+        signal: controller.signal,
+      })
+        .then((response) =>
+          response.ok
+            ? (response.json() as Promise<{ suggestions?: unknown }>)
+            : null,
+        )
+        .then((body: { suggestions?: unknown } | null) => {
+          const list = Array.isArray(body?.suggestions)
+            ? body.suggestions.filter(
+                (item): item is string => typeof item === "string",
+              )
+            : [];
+          setSuggestions(list.filter((item) => item !== prefix));
+        })
+        .catch(() => {});
+    }, SUGGEST_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [value]);
 
   // Filters other than the keyword, as a stable string for the effect below.
   const filterKey = toSearchParams({ ...query, q: "", page: 1 }).toString();
@@ -104,10 +139,33 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
     { slug: null, label: t.anyEra },
     ...ERAS.map((era) => ({ slug: era.slug, label: dict.eras[era.slug] })),
   ];
-  const activeTags = TAG_KINDS.flatMap((kind) => {
-    const tag = query[kind];
-    return tag ? [{ kind, value: tag }] : [];
-  });
+  const activeTags = [
+    ...TAG_KINDS.flatMap((kind) => {
+      const tag = query[kind];
+      return tag
+        ? [
+            {
+              key: kind,
+              label: format(t.tagFilter[kind], { value: tag }),
+              lang: "en",
+            },
+          ]
+        : [];
+    }),
+    ...(query.place
+      ? [
+          {
+            key: "place" as const,
+            label: format(t.placeFilter, {
+              value:
+                placeByKey(query.place)?.[locale === "en" ? "en" : "zh"] ??
+                query.place,
+            }),
+            lang: placeByKey(query.place) ? undefined : "en",
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -134,9 +192,18 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
             placeholder={t.searchPlaceholder}
             autoComplete="off"
             enterKeyHint="search"
+            list="explore-suggestions"
             lang="en"
             className="min-h-12 w-full border-0 border-b border-ink/30 bg-transparent pl-9 font-serif text-xl text-ink transition-colors duration-200 ease-gallery placeholder:text-muted/80 focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 sm:text-2xl"
           />
+          <datalist id="explore-suggestions">
+            {suggestions.map((suggestion) => (
+              <option key={suggestion} value={suggestion} />
+            ))}
+          </datalist>
+          {query.sort !== "relevance" ? (
+            <input type="hidden" name="sort" value={query.sort} />
+          ) : null}
           {FILTER_KEYS.map((key) =>
             query[key] ? (
               <input
@@ -256,17 +323,17 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
         {activeTags.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {activeTags.map((tag) => {
-              const label = format(t.tagFilter[tag.kind], { value: tag.value });
+              const label = tag.label;
               return (
-                <li key={tag.kind}>
+                <li key={tag.key}>
                   <Link
-                    href={hrefWith({ [tag.kind]: null })}
+                    href={hrefWith({ [tag.key]: null })}
                     scroll={false}
                     prefetch={false}
                     aria-label={format(t.removeFilter, { label })}
                     className="inline-flex min-h-9 items-center gap-2 rounded-full bg-accent/10 px-3 text-[0.8125rem] text-accent-deep transition-colors duration-200 ease-gallery hover:bg-accent/20"
                   >
-                    <span lang="en">{label}</span>
+                    <span lang={tag.lang}>{label}</span>
                     <X aria-hidden="true" className="size-3.5" />
                   </Link>
                 </li>
@@ -275,7 +342,38 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
           </ul>
         ) : null}
 
-        <div className="flex min-h-6 items-center gap-4">
+        <div className="flex min-h-6 flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-1 text-sm">
+            <span
+              id="sort-label"
+              className="mr-1 text-xs font-medium tracking-[0.14em] text-muted uppercase"
+            >
+              {t.sortLabel}
+            </span>
+            <ul aria-labelledby="sort-label" className="flex items-center">
+              {SORTS.map((sort, index) => (
+                <li key={sort} className="flex items-center">
+                  {index > 0 ? (
+                    <span aria-hidden="true" className="px-1.5 text-muted">
+                      ·
+                    </span>
+                  ) : null}
+                  <Link
+                    href={hrefWith({ sort })}
+                    scroll={false}
+                    prefetch={false}
+                    aria-current={query.sort === sort ? "true" : undefined}
+                    className={cn(
+                      "py-1 underline-offset-4 hover:underline",
+                      query.sort === sort ? "text-ink underline" : "text-muted",
+                    )}
+                  >
+                    {t.sorts[sort]}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
           {hasFilters(query) ? (
             <Link
               href={searchHref(locale, {})}

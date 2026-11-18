@@ -13,6 +13,7 @@ import { LOCALE_TAGS } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+import { placeByKey } from "@/lib/geo/places";
 import { Pagination } from "./pagination";
 import { ResultsError } from "./results-error";
 import type { ResultsErrorReason } from "./results-error";
@@ -50,6 +51,9 @@ function Summary({
     query.style,
     query.subject,
     query.theme,
+    query.place
+      ? (placeByKey(query.place)?.[locale === "en" ? "en" : "zh"] ?? query.place)
+      : null,
   ].filter(Boolean);
 
   return (
