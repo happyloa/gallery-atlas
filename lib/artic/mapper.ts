@@ -3,8 +3,10 @@
  * server: a work becomes displayable only when the museum marks it public domain AND it
  * has a valid image id AND the IIIF base checks out. Everything else maps to null.
  */
-import type { Artwork, ArtworkDetail } from "@/lib/artwork/types";
-import { museumArtworkUrl } from "./config";
+import type { Artist, Artwork, ArtworkDetail } from "@/lib/artwork/types";
+import { MAX_TAG_LENGTH, museumArtistUrl, museumArtworkUrl } from "./config";
+import type { TagKind } from "./config";
+import { colorForHsl, eraForYear } from "./filters";
 import {
   aspectRatioFrom,
   buildArtworkImage,
@@ -13,7 +15,11 @@ import {
   safePlaceholder,
 } from "./images";
 import { parseDescription } from "./description";
-import { rawArtworkSchema } from "./schema";
+import {
+  rawArtistSchema,
+  rawArtworkExtrasSchema,
+  rawArtworkSchema,
+} from "./schema";
 
 const MAX_TEXT_LENGTH = 600;
 
@@ -110,11 +116,100 @@ export function toArtworkDetail(input: unknown, iiifBase: string | null): Artwor
   const artwork = toArtwork(input, iiifBase);
   if (!artwork || !iiifBase) return null;
   const raw = rawArtworkSchema.parse(input);
+  const extras = rawArtworkExtrasSchema.parse(input);
+  const color = extras.color;
   return {
     ...artwork,
     artistDisplay: cleanMultiline(raw.artist_display),
     description: parseDescription(raw.description),
     // toArtwork already checked public-domain status and the image id.
     zoomSrc: iiifUrl(iiifBase, raw.image_id as string, 1686, true),
+    artistId: extras.artist_id ?? null,
+    era: eraForYear(extras.date_start),
+    dominantColor: color
+      ? {
+          css: `hsl(${Math.round(color.h)} ${Math.round(color.s)}% ${Math.round(color.l)}%)`,
+          slug: colorForHsl(color),
+        }
+      : null,
+    tags: {
+      style: cleanTags(extras.style_titles, TAG_LIMITS.style),
+      subject: cleanTags(extras.subject_titles, TAG_LIMITS.subject),
+      theme: cleanTags(extras.theme_titles, TAG_LIMITS.theme),
+    },
+    onView:
+      extras.is_on_view === true
+        ? { gallery: cleanText(extras.gallery_title, 120) }
+        : null,
+    record: {
+      inscriptions: cleanParagraphs(extras.inscriptions),
+      provenance: cleanParagraphs(extras.provenance_text),
+      exhibitions: cleanParagraphs(extras.exhibition_history),
+      publications: cleanParagraphs(extras.publication_history),
+    },
+  };
+}
+
+/** How many of each kind of tag a detail page lists. */
+const TAG_LIMITS: Record<TagKind, number> = { style: 8, subject: 12, theme: 6 };
+
+/**
+ * Tag strings that can double as exact search filters: trimmed, short enough to pass the
+ * filter's own length check, and without case-insensitive duplicates.
+ */
+export function cleanTags(values: readonly unknown[] | null | undefined, max: number): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const value of values ?? []) {
+    if (typeof value !== "string") continue;
+    const tag = value.replace(/\s+/g, " ").trim();
+    const key = tag.toLowerCase();
+    if (!tag || Array.from(tag).length > MAX_TAG_LENGTH || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length === max) break;
+  }
+  return tags;
+}
+
+/** Longest object-record text kept; the rest is on the museum's page. */
+const MAX_RECORD_LENGTH = 6000;
+
+/** Plain text split into one paragraph per line, whitespace tidied, length capped. */
+export function cleanParagraphs(value: string | null | undefined): string[] | null {
+  if (typeof value !== "string") return null;
+  const paragraphs: string[] = [];
+  let used = 0;
+  for (const block of value.split(/\r?\n/)) {
+    const text = block.replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    if (used + text.length > MAX_RECORD_LENGTH) {
+      const room = MAX_RECORD_LENGTH - used;
+      if (room > 80) paragraphs.push(`${text.slice(0, room - 1).trimEnd()}…`);
+      else paragraphs.push("…");
+      break;
+    }
+    paragraphs.push(text);
+    used += text.length;
+  }
+  return paragraphs.length > 0 ? paragraphs : null;
+}
+
+/** An artist record, or null when it is unusable (no id or name). */
+export function toArtist(input: unknown): Artist | null {
+  const parsed = rawArtistSchema.safeParse(input);
+  if (!parsed.success) return null;
+  const raw = parsed.data;
+  const name = cleanText(raw.title, 200);
+  if (!name) return null;
+  const year = (value: number | null | undefined) =>
+    typeof value === "number" && value > -10000 && value < 3000 ? value : null;
+  return {
+    id: raw.id,
+    name,
+    birthYear: year(raw.birth_date),
+    deathYear: year(raw.death_date),
+    description: parseDescription(raw.description),
+    sourceUrl: museumArtistUrl(raw.id),
   };
 }

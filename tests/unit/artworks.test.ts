@@ -1,3 +1,4 @@
+import { EMPTY_QUERY } from "@/lib/artic/search-url";
 import { describe, expect, it, vi } from "vitest";
 import {
   getArtwork,
@@ -16,7 +17,7 @@ import {
   searchResponse,
 } from "../fixtures/aic";
 
-const query = { q: "", type: null, page: 1 };
+const query = { ...EMPTY_QUERY, q: "", type: null, page: 1 };
 
 describe("searchArtworks", () => {
   it("returns only displayable works and caps pages at the search window", async () => {
@@ -47,7 +48,7 @@ describe("searchArtworks", () => {
       jsonResponse(searchResponse([rawArtwork()], { total: 33 })),
     );
     const result = await searchArtworks(
-      { q: "monet", type: "painting", page: 1 },
+      { ...EMPTY_QUERY, q: "monet", type: "painting", page: 1 },
       { fetchImpl, ...fastRetry },
     );
     expect(result).toMatchObject({ total: 33, totalPages: 3, limited: false });

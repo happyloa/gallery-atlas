@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { ArtworkCard } from "@/components/artwork/artwork-card";
-import { FavoriteButton } from "@/components/collections/favorite-button";
+import { ArtworkWall } from "@/components/artwork/artwork-wall";
 import { buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Reveal } from "@/components/motion/reveal";
 import { searchArtworks } from "@/lib/artic/artworks";
 import type { SearchResult } from "@/lib/artic/artworks";
 import { isAicError } from "@/lib/artic/client";
@@ -45,6 +43,14 @@ function Summary({
       : t.summaryAll;
   const from = (query.page - 1) * PAGE_SIZE + 1;
   const to = from + result.artworks.length - 1;
+  // Era, colour and tag filters, named after the count: "179 works · 1800s · Blue".
+  const narrowedBy = [
+    query.era ? dict.eras[query.era] : null,
+    query.color ? dict.colors[query.color] : null,
+    query.style,
+    query.subject,
+    query.theme,
+  ].filter(Boolean);
 
   return (
     <div className="mt-14 flex flex-col gap-2 border-y border-line py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -54,6 +60,7 @@ function Summary({
           type,
           q: query.q,
         })}
+        {narrowedBy.length > 0 ? ` · ${narrowedBy.join(" · ")}` : null}
         {result.artworks.length > 0 ? (
           <span className="text-muted">
             {format(t.showing, {
@@ -178,18 +185,7 @@ export async function ExploreResults({
   return (
     <>
       <Summary locale={locale} dict={dict} query={query} result={result} />
-      <ul className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {result.artworks.map((artwork, index) => (
-          <Reveal as="li" key={artwork.id} delay={(index % 4) * 90}>
-            <ArtworkCard
-              artwork={artwork}
-              locale={locale}
-              revealDelay={(index % 4) * 90}
-              action={<FavoriteButton artworkId={artwork.id} title={artwork.title} />}
-            />
-          </Reveal>
-        ))}
-      </ul>
+      <ArtworkWall artworks={result.artworks} locale={locale} className="mt-14" />
       <Pagination
         locale={locale}
         dict={dict}

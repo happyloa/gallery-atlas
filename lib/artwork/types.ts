@@ -1,3 +1,5 @@
+import type { ColorSlug, EraSlug, TagKind } from "@/lib/artic/config";
+
 /**
  * Domain model used by the UI. Components never read the raw Art Institute of
  * Chicago API shape; the server maps and validates upstream data into these types.
@@ -49,4 +51,33 @@ export interface ArtworkDetail extends Artwork {
   description: TextRun[][] | null;
   /** The largest image the museum allows for public-domain works (1686px wide). */
   zoomSrc: string | null;
+  /** The museum's artist record, for the artist page. */
+  artistId: number | null;
+  /** Era filter the work's start date falls in. */
+  era: EraSlug | null;
+  /** Dominant colour, as CSS, and the colour filter it falls under (null when muted). */
+  dominantColor: { css: string; slug: ColorSlug | null } | null;
+  /** The museum's own tags, each usable as an exact search filter. */
+  tags: Record<TagKind, string[]>;
+  /** Hanging at the museum in Chicago right now, and where. */
+  onView: { gallery: string | null } | null;
+  /** The object record, as paragraphs of plain text (CC0 metadata). */
+  record: {
+    inscriptions: string[] | null;
+    provenance: string[] | null;
+    exhibitions: string[] | null;
+    publications: string[] | null;
+  };
+}
+
+/** An artist (AIC agent) with a public page on this site. */
+export interface Artist {
+  id: number;
+  name: string;
+  birthYear: number | null;
+  deathYear: number | null;
+  /** The museum's biography (CC BY 4.0; credit it wherever shown). */
+  description: TextRun[][] | null;
+  /** The artist's page on artic.edu. */
+  sourceUrl: string;
 }

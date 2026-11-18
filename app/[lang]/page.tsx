@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ExploreSection } from "@/components/discover/explore-section";
 import { HeroGallery } from "@/components/discover/hero-gallery";
 import { Statement } from "@/components/discover/statement";
+import { WaysIn } from "@/components/discover/ways-in";
 import { getFeaturedArtworks } from "@/lib/artic/featured";
 import { parseSearchQuery } from "@/lib/artic/queries";
 import {
@@ -94,6 +96,9 @@ export default async function Home({
         }
       />
       <Statement locale={locale} dict={dict} />
+      <Suspense fallback={null}>
+        <WaysIn locale={locale} dict={dict} />
+      </Suspense>
       <ExploreSection
         locale={locale}
         dict={dict}

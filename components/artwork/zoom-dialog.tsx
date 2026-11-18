@@ -126,7 +126,7 @@ export function ZoomDialog({ src, alt, title, aspectRatio }: ZoomDialogProps) {
             aria-label={alt}
             role="region"
             className={cn(
-              "min-h-0 flex-1 overflow-auto focus-visible:outline-offset-[-4px]",
+              "scrollbar-dark min-h-0 flex-1 overflow-auto focus-visible:outline-offset-[-4px]",
               level === "fit" && "flex items-center justify-center p-4 sm:p-8",
             )}
           >

@@ -78,6 +78,8 @@ for (const path of [
   "/en/about",
   "/zh-tw/about",
   "/en/artworks/424242",
+  "/en/artists/40810",
+  "/zh-tw?color=blue&era=1800s&style=Impressionism",
 ]) {
   test(`no WCAG A/AA violations on ${path}`, async ({ page }) => {
     await gotoReady(page, path);

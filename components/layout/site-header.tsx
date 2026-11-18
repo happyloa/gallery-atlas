@@ -16,7 +16,10 @@ function isActive(
   section: "home" | "collection" | "about",
 ): boolean {
   const rest = pathname.slice(`/${locale}`.length) || "/";
-  if (section === "home") return rest === "/" || rest.startsWith("/artworks");
+  if (section === "home")
+    return (
+      rest === "/" || rest.startsWith("/artworks") || rest.startsWith("/artists")
+    );
   return rest === `/${section}` || rest.startsWith(`/${section}/`);
 }
 

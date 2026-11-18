@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
+import {
+  LookFurther,
+  MoreByArtist,
+  ObjectRecord,
+  OnView,
+} from "@/components/artwork/detail-extras";
 import { Reveal } from "@/components/motion/reveal";
 import { ZoomDialog } from "@/components/artwork/zoom-dialog";
 import { ExhibitionPicker } from "@/components/collections/exhibition-picker";
@@ -233,7 +239,16 @@ export default async function ArtworkPage({ params }: { params: Params }) {
             {artwork.title}
           </h1>
           <p lang="en" className="mt-4 text-lg whitespace-pre-line text-ink/90">
-            {artwork.artistDisplay ?? artwork.artist}
+            {artwork.artistId !== null ? (
+              <Link
+                href={localizePath(locale, `/artists/${artwork.artistId}`)}
+                className="underline decoration-ink/25 underline-offset-[6px] transition-colors duration-200 ease-gallery hover:decoration-ink"
+              >
+                {artwork.artistDisplay ?? artwork.artist}
+              </Link>
+            ) : (
+              (artwork.artistDisplay ?? artwork.artist)
+            )}
           </p>
           {artwork.dateDisplay ? (
             <p lang="en" className="mt-1 text-muted">
@@ -269,6 +284,8 @@ export default async function ArtworkPage({ params }: { params: Params }) {
             <Fact label={t.origin} value={artwork.origin} />
             <Fact label={t.creditLine} value={artwork.creditLine} />
           </dl>
+          <OnView artwork={artwork} dict={dict} />
+          <LookFurther artwork={artwork} locale={locale} dict={dict} />
         </div>
       </Container>
 
@@ -307,6 +324,16 @@ export default async function ArtworkPage({ params }: { params: Params }) {
           </Reveal>
         </Container>
       ) : null}
+
+      <Container className="mt-16 sm:mt-24">
+        <ObjectRecord artwork={artwork} dict={dict} />
+      </Container>
+
+      <Container className="mt-16 sm:mt-24">
+        <Suspense fallback={null}>
+          <MoreByArtist artwork={artwork} locale={locale} dict={dict} />
+        </Suspense>
+      </Container>
     </article>
   );
 }

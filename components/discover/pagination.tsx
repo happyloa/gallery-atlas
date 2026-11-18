@@ -16,14 +16,17 @@ interface PaginationProps {
   dict: Dictionary;
   query: SearchQuery;
   totalPages: number;
+  /** Where page `n` lives. Defaults to Explore with the same search. */
+  hrefFor?: (page: number) => string;
 }
 
-/** Previous / next links that keep the keyword and type. No prefetch: each page is an API call. */
+/** Previous / next links that keep the search. No prefetch: each page is an API call. */
 export function Pagination({
   locale,
   dict,
   query,
   totalPages,
+  hrefFor = (page) => searchHref(locale, { ...query, page }),
 }: PaginationProps) {
   if (totalPages <= 1) return null;
   const t = dict.explore;
@@ -37,7 +40,7 @@ export function Pagination({
     >
       {hasPrevious ? (
         <Link
-          href={searchHref(locale, { ...query, page: query.page - 1 })}
+          href={hrefFor(query.page - 1)}
           prefetch={false}
           className={step}
           rel="prev"
@@ -56,7 +59,7 @@ export function Pagination({
       </p>
       {hasNext ? (
         <Link
-          href={searchHref(locale, { ...query, page: query.page + 1 })}
+          href={hrefFor(query.page + 1)}
           prefetch={false}
           className={step}
           rel="next"

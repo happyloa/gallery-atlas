@@ -1,3 +1,4 @@
+import { EMPTY_QUERY } from "@/lib/artic/search-url";
 import { describe, expect, it } from "vitest";
 import { MAX_PAGE } from "@/lib/artic/config";
 import {
@@ -14,7 +15,7 @@ describe("parseSearchQuery", () => {
   it("defaults to an empty search on page 1", () => {
     expect(parseSearchQuery(new URLSearchParams())).toEqual({
       ok: true,
-      query: { q: "", type: null, page: 1 },
+      query: { ...EMPTY_QUERY, q: "", type: null, page: 1 },
     });
   });
 
@@ -26,7 +27,7 @@ describe("parseSearchQuery", () => {
     });
     expect(result).toEqual({
       ok: true,
-      query: { q: "monet", type: "painting", page: 3 },
+      query: { ...EMPTY_QUERY, q: "monet", type: "painting", page: 3 },
     });
   });
 
@@ -58,7 +59,7 @@ describe("parseSearchQuery", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.code).toBe("invalid_page");
-        expect(result.query).toEqual({ q: "monet", type: null, page: 1 });
+        expect(result.query).toEqual({ ...EMPTY_QUERY, q: "monet", type: null, page: 1 });
       }
     },
   );
@@ -73,7 +74,7 @@ describe("parseSearchQuery", () => {
 
 describe("buildSearchRequest", () => {
   it("always filters to public-domain works with an image", () => {
-    const body = buildSearchRequest({ q: "", type: null, page: 1 }) as {
+    const body = buildSearchRequest({ ...EMPTY_QUERY, q: "", type: null, page: 1 }) as {
       query: { bool: { filter: unknown[] } };
     };
     expect(body.query.bool.filter).toEqual([
@@ -84,6 +85,7 @@ describe("buildSearchRequest", () => {
 
   it("adds the type id and a plain-text keyword match", () => {
     const body = buildSearchRequest({
+      ...EMPTY_QUERY,
       q: 'Renoir & "two sisters"',
       type: "print",
       page: 2,
@@ -108,7 +110,7 @@ describe("buildSearchRequest", () => {
   });
 
   it("URL-encodes special characters into the params query string", () => {
-    const path = searchPath({ q: "café & co/?#", type: null, page: 1 });
+    const path = searchPath({ ...EMPTY_QUERY, q: "café & co/?#", type: null, page: 1 });
     expect(path.startsWith("/artworks/search?params=")).toBe(true);
     expect(path).not.toMatch(/[ &#?]co/);
     const decoded = JSON.parse(decodeURIComponent(path.split("params=")[1]));
@@ -119,7 +121,7 @@ describe("buildSearchRequest", () => {
 describe("links and ids", () => {
   it("builds short, localized Explore links", () => {
     expect(
-      searchHref("en", { q: "monet water", type: "painting", page: 1 }),
+      searchHref("en", { ...EMPTY_QUERY, q: "monet water", type: "painting", page: 1 }),
     ).toBe("/en?q=monet+water&type=painting#explore");
     expect(searchHref("zh-tw", { page: 2 })).toBe("/zh-tw?page=2#explore");
     expect(searchHref("en", {})).toBe("/en#explore");

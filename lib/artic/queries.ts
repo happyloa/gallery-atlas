@@ -1,23 +1,37 @@
 /**
  * Whitelisted search parameters and the fixed query sent upstream.
  *
- * Visitors control three things: a keyword (≤ 100 chars), a type from a fixed list, and a
- * page within the API's 1,000-result window. They never supply a URL or query DSL.
+ * Visitors control a keyword (≤ 100 chars), a type, era and colour from fixed lists, one
+ * style, subject or theme tag (≤ 60 chars, matched exactly), and a page within the API's
+ * 1,000-result window. They never supply a URL or query DSL: every value lands in a fixed
+ * clause as plain JSON data.
  */
 import { z } from "zod";
 import {
   ARTWORK_DETAIL_FIELDS,
   ARTWORK_FIELDS,
   ARTWORK_TYPES,
+  COLORS,
+  ENTRANCES,
+  ERAS,
   MAX_PAGE,
   MAX_QUERY_LENGTH,
+  MAX_TAG_LENGTH,
   PAGE_SIZE,
 } from "./config";
-import type { ArtworkTypeSlug } from "./config";
+import type { ArtworkTypeSlug, ColorSlug, EraSlug } from "./config";
+import {
+  colorClauses,
+  DISPLAYABLE,
+  eraClause,
+  tagClause,
+  VIVID_CLAUSES,
+} from "./filters";
+import { EMPTY_QUERY } from "./search-url";
 import type { SearchQuery } from "./search-url";
 
 export type { SearchQuery } from "./search-url";
-export { searchHref, toSearchParams } from "./search-url";
+export { EMPTY_QUERY, searchHref, toSearchParams } from "./search-url";
 
 export type SearchQueryError =
   | { code: "invalid_page"; message: string }
@@ -42,10 +56,17 @@ const typeSlugs = ARTWORK_TYPES.map((t) => t.slug) as [
   ...ArtworkTypeSlug[],
 ];
 const typeSchema = z.enum(typeSlugs);
+const eraSchema = z.enum(ERAS.map((e) => e.slug) as [EraSlug, ...EraSlug[]]);
+const colorSchema = z.enum(
+  COLORS.map((c) => c.slug) as [ColorSlug, ...ColorSlug[]],
+);
 const pageSchema = z.string().regex(/^\d{1,6}$/);
 
 /** Collapses whitespace and caps the keyword at the maximum length. */
-export function normalizeKeyword(value: string | undefined): string {
+export function normalizeKeyword(
+  value: string | undefined,
+  max: number = MAX_QUERY_LENGTH,
+): string {
   if (!value) return "";
   // Turn control characters into spaces, then collapse whitespace.
   const cleaned = Array.from(value, (char) => {
@@ -55,15 +76,28 @@ export function normalizeKeyword(value: string | undefined): string {
     .join("")
     .replace(/\s+/g, " ")
     .trim();
-  return Array.from(cleaned).slice(0, MAX_QUERY_LENGTH).join("").trim();
+  return Array.from(cleaned).slice(0, max).join("").trim();
 }
 
 export function parseSearchQuery(params: RawParams): SearchQueryResult {
-  const q = normalizeKeyword(first(params, "q"));
-  const typeResult = typeSchema.safeParse(first(params, "type"));
-  // Unknown types are ignored rather than rejected: an old or edited link still works.
-  const type = typeResult.success ? typeResult.data : null;
-  const base: SearchQuery = { q, type, page: 1 };
+  // Unknown types, eras and colours are ignored rather than rejected, so an old or
+  // edited link still shows something.
+  const pick = <T>(schema: z.ZodType<T>, key: string): T | null => {
+    const result = schema.safeParse(first(params, key));
+    return result.success ? result.data : null;
+  };
+  const tag = (key: string) =>
+    normalizeKeyword(first(params, key), MAX_TAG_LENGTH) || null;
+  const base: SearchQuery = {
+    ...EMPTY_QUERY,
+    q: normalizeKeyword(first(params, "q")),
+    type: pick(typeSchema, "type"),
+    era: pick(eraSchema, "era"),
+    color: pick(colorSchema, "color"),
+    style: tag("style"),
+    subject: tag("subject"),
+    theme: tag("theme"),
+  };
 
   const rawPage = first(params, "page");
   if (rawPage === undefined || rawPage === "") return { ok: true, query: base };
@@ -104,6 +138,14 @@ const KEYWORD_FIELDS = [
   "place_of_origin",
 ];
 
+export interface SearchScope {
+  /** Only works by this artist (AIC agent id). */
+  artistId?: number;
+  /** Leave this work out, e.g. the one already on screen. */
+  excludeId?: number;
+  limit?: number;
+}
+
 /**
  * The `params` object for GET /artworks/search. A `multi_match` treats the keyword as
  * plain text (no query syntax), and `cross_fields` lets "monet water lilies" match an
@@ -111,15 +153,22 @@ const KEYWORD_FIELDS = [
  */
 export function buildSearchRequest(
   query: SearchQuery,
+  scope: SearchScope = {},
 ): Record<string, unknown> {
-  const filter: unknown[] = [
-    { term: { is_public_domain: true } },
-    { exists: { field: "image_id" } },
-  ];
+  const filter: unknown[] = [...DISPLAYABLE];
   const typeId = ARTWORK_TYPES.find((t) => t.slug === query.type)?.id;
   if (typeId !== undefined) filter.push({ term: { artwork_type_id: typeId } });
+  if (query.era) filter.push(eraClause(query.era));
+  if (query.color) filter.push(...colorClauses(query.color));
+  if (query.style) filter.push(tagClause("style", query.style));
+  if (query.subject) filter.push(tagClause("subject", query.subject));
+  if (query.theme) filter.push(tagClause("theme", query.theme));
+  if (scope.artistId !== undefined)
+    filter.push({ term: { artist_id: scope.artistId } });
 
   const bool: Record<string, unknown> = { filter };
+  if (scope.excludeId !== undefined)
+    bool.must_not = [{ term: { id: scope.excludeId } }];
   if (query.q) {
     bool.must = [
       {
@@ -139,14 +188,73 @@ export function buildSearchRequest(
   return {
     query: { bool },
     fields: ARTWORK_FIELDS.join(","),
-    limit: PAGE_SIZE,
+    limit: scope.limit ?? PAGE_SIZE,
     page: query.page,
   };
 }
 
+function searchPathFor(params: Record<string, unknown>): string {
+  return `/artworks/search?params=${encodeURIComponent(JSON.stringify(params))}`;
+}
+
 /** Path and query string for a search request (relative to the API base). */
-export function searchPath(query: SearchQuery): string {
-  return `/artworks/search?params=${encodeURIComponent(JSON.stringify(buildSearchRequest(query)))}`;
+export function searchPath(query: SearchQuery, scope?: SearchScope): string {
+  return searchPathFor(buildSearchRequest(query, scope));
+}
+
+/**
+ * Counts for the homepage: works under each curated entrance and in each era. One
+ * request, no records (limit 0).
+ */
+export function overviewPath(): string {
+  return searchPathFor({
+    query: { bool: { filter: DISPLAYABLE } },
+    limit: 0,
+    aggs: {
+      entrances: {
+        filters: {
+          filters: Object.fromEntries(
+            ENTRANCES.map((e) => [e.slug, tagClause(e.kind, e.value)]),
+          ),
+        },
+      },
+      eras: {
+        range: {
+          field: "date_start",
+          ranges: ERAS.map((e) => ({
+            key: e.slug,
+            ...(e.from != null ? { from: e.from } : {}),
+            ...(e.to != null ? { to: e.to } : {}),
+          })),
+        },
+      },
+    },
+  });
+}
+
+/**
+ * Dominant-colour counts in 5° hue buckets, for vivid colours only. Kept apart from
+ * overviewPath: a filters aggregation per colour made the URL too long for the API's CDN.
+ */
+export function huesPath(): string {
+  return searchPathFor({
+    query: { bool: { filter: [...DISPLAYABLE, ...VIVID_CLAUSES] } },
+    limit: 0,
+    aggs: { hues: { histogram: { field: "color.h", interval: 5 } } },
+  });
+}
+
+/** Fields read from an artist (agent) record. */
+export const ARTIST_FIELDS = [
+  "id",
+  "title",
+  "birth_date",
+  "death_date",
+  "description",
+] as const;
+
+export function artistPath(id: number): string {
+  return `/agents/${id}?fields=${ARTIST_FIELDS.join(",")}`;
 }
 
 export function artworkPath(id: number, detail = false): string {
@@ -158,10 +266,13 @@ export function artworksByIdsPath(ids: readonly number[]): string {
 }
 
 /** Positive integer id from a route segment or query value, or null. */
-export function parseArtworkId(
+export function parseId(
   value: string | undefined | null,
 ): number | null {
   if (!value || !/^\d{1,9}$/.test(value)) return null;
   const id = Number(value);
   return id > 0 ? id : null;
 }
+
+/** Artwork ids follow the same rule as any other record id. */
+export const parseArtworkId = parseId;

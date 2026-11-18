@@ -2,20 +2,28 @@
  * Server-side reads used by pages and route handlers. Each returns domain types only,
  * already filtered to displayable public-domain works.
  */
-import type { Artwork, ArtworkDetail } from "@/lib/artwork/types";
+import type { Artist, Artwork, ArtworkDetail } from "@/lib/artwork/types";
 import { aicGet, AicError, isAicError } from "./client";
 import type { AicRequestOptions } from "./client";
 import {
   MAX_IDS_PER_REQUEST,
   MAX_PAGE,
+  MAX_REQUEST_PATH,
   MAX_SEARCH_RESULTS,
   REVALIDATE_ARTWORK,
+  REVALIDATE_REFERENCE,
   REVALIDATE_SEARCH,
 } from "./config";
 import { resolveIiifBase } from "./images";
-import { toArtwork, toArtworkDetail, toArtworks } from "./mapper";
-import { artworkPath, artworksByIdsPath, searchPath } from "./queries";
-import type { SearchQuery } from "./queries";
+import { toArtist, toArtwork, toArtworkDetail, toArtworks } from "./mapper";
+import {
+  artistPath,
+  artworkPath,
+  artworksByIdsPath,
+  EMPTY_QUERY,
+  searchPath,
+} from "./queries";
+import type { SearchQuery, SearchScope } from "./queries";
 import {
   detailResponseSchema,
   listResponseSchema,
@@ -45,8 +53,16 @@ function invalid(what: string): AicError {
 export async function searchArtworks(
   query: SearchQuery,
   options: RequestOptions = {},
+  scope?: SearchScope,
 ): Promise<SearchResult> {
-  const json = await aicGet(searchPath(query), {
+  const path = searchPath(query, scope);
+  // The museum's CDN rejects very long URLs outright; say so plainly instead.
+  if (path.length > MAX_REQUEST_PATH)
+    throw new AicError(
+      "bad_request",
+      "This search has too many filters at once. Remove one and try again.",
+    );
+  const json = await aicGet(path, {
     ...options,
     revalidate: REVALIDATE_SEARCH,
   });
@@ -160,4 +176,51 @@ export async function getArtworkDetail(id: number, options: RequestOptions = {})
   if (!parsed.success) throw invalid("artwork");
   const artwork = toArtworkDetail(parsed.data.data, resolveIiifBase(parsed.data.config?.iiif_url));
   return artwork ? { status: "ok", artwork } : { status: "restricted" };
+}
+
+export type ArtistLookup =
+  | { status: "ok"; artist: Artist }
+  | { status: "not_found" };
+
+/** An artist (AIC agent) record. */
+export async function getArtist(
+  id: number,
+  options: RequestOptions = {},
+): Promise<ArtistLookup> {
+  let json: unknown;
+  try {
+    json = await aicGet(artistPath(id), {
+      ...options,
+      revalidate: REVALIDATE_REFERENCE,
+    });
+  } catch (error) {
+    if (isAicError(error) && error.code === "not_found")
+      return { status: "not_found" };
+    throw error;
+  }
+  const parsed = detailResponseSchema.safeParse(json);
+  if (!parsed.success) throw invalid("artist");
+  const artist = toArtist(parsed.data.data);
+  return artist ? { status: "ok", artist } : { status: "not_found" };
+}
+
+/**
+ * A few other public-domain works by the same artist, for the detail page. Extra, so a
+ * failure gives an empty list instead of an error.
+ */
+export async function getMoreByArtist(
+  artistId: number,
+  excludeId: number,
+  limit = 4,
+): Promise<{ artworks: Artwork[]; total: number }> {
+  try {
+    const result = await searchArtworks(
+      EMPTY_QUERY,
+      { timeoutMs: 5000, retries: 1 },
+      { artistId, excludeId, limit },
+    );
+    return { artworks: result.artworks, total: result.total };
+  } catch {
+    return { artworks: [], total: 0 };
+  }
 }
