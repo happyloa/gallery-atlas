@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { isLocale, LOCALE_TAGS, LOCALES, OG_LOCALES } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { I18nProvider } from "@/lib/i18n/provider";
+import { siteUrl } from "@/lib/site";
 import "../globals.css";
 
 const newsreader = Newsreader({
@@ -49,6 +50,7 @@ export async function generateMetadata({
   if (!isLocale(lang)) return {};
   const dict = getDictionary(lang);
   return {
+    metadataBase: siteUrl() ?? undefined,
     title: { default: "Gallery Atlas", template: "%s · Gallery Atlas" },
     description: dict.meta.description,
     openGraph: {

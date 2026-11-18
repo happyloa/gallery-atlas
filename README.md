@@ -1,5 +1,7 @@
 # Gallery Atlas
 
+[![CI](https://github.com/happyloa/gallery-atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/happyloa/gallery-atlas/actions/workflows/ci.yml)
+
 瀏覽、欣賞、收藏公有領域藝術作品的網站。作品資料與圖片來自芝加哥藝術博物館（Art Institute of Chicago）的公開 API。
 
 > An independent, thoughtfully designed space to discover, appreciate, and curate public-domain art.
@@ -11,37 +13,107 @@
 > This is an independent project and is not affiliated with the Art Institute of Chicago.
 > 本站為個人作品，與芝加哥藝術博物館無關。
 
+## 功能
+
+- 首頁是一間 three.js 展廳，掛著館方精選的公有領域作品，照實際尺寸掛牆，每件有自己的投射燈。可以點畫、用按鈕或鍵盤換下一件。
+- 搜尋館藏（英文關鍵字）、依類型篩選、分頁。條件都寫在網址裡，重新整理、分享連結、上一頁都會還原。
+- 作品詳情頁：大圖、完整圖片檢視、作品資料、館方的作品說明（CC BY 4.0）與館方連結。
+- 收藏作品，以及自訂展覽（建立、改名、刪除、加入與移除作品）。資料存在瀏覽器，不需要帳號。
+- 英文與繁體中文介面，中文字型用 Noto Serif TC。
+- 手機、平板、桌機都能用；鍵盤可以操作所有功能；開啟「減少動態效果」時沒有鏡頭漂移和平滑捲動。
+
+截圖：部署後補上。開發環境連不到館方的 IIIF 圖片伺服器（見「已知問題」），截不到真實的作品圖。
+
 ## 開發
 
 需要 Node.js 22 以上（開發時用 26）。
 
 ```bash
 npm install
-npm run dev          # 開發伺服器
+npm run dev          # 開發伺服器，http://localhost:5173
 npm run build        # 建置 Cloudflare Worker
 npm run start        # 在本機 workerd 預覽建置結果
 npm run deploy       # 部署到 Cloudflare Workers
 ```
 
+### 環境變數
+
+都只在伺服器端使用，範本見 `.env.example`。
+
+| 變數                | 用途                                                                                                | 本機開發 |
+| ------------------- | --------------------------------------------------------------------------------------------------- | -------- |
+| `AIC_CONTACT_EMAIL` | 放進送給館方 API 的 `AIC-User-Agent` 標頭，館方要求附上聯絡方式。正式上線請填有效的公開信箱。       | 可不填   |
+| `SITE_URL`          | 網站的正式網址，用來產生 Open Graph、hreflang、`sitemap.xml`、`robots.txt` 裡的完整網址。           | 可不填   |
+| `AIC_FIXTURES`      | 設為 `1` 時，`vite dev` 改用本機假資料，不連館方 API。只有 dev server 會讀，`vite build` 一律忽略。 | 選用     |
+
+## 測試
+
 ```bash
 npm run lint
 npm run typecheck
-npm test             # 單元、整合與元件測試，上游 API 全部 mock
+npm test             # 單元、整合與元件測試（Vitest），上游 API 全部 mock
 npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
-npm run test:e2e     # Playwright，用 fixture 模式啟動 dev server
+npm run test:e2e     # Playwright E2E 與 axe 無障礙掃描
 ```
 
-E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館方 API 改由 `lib/artic/dev-fixtures.ts` 的本機資料回應，IIIF 圖片在瀏覽器端攔截，所以結果不受館方伺服器影響。vinext 同一個專案只允許一個 dev server，跑 E2E 前要先停掉 `npm run dev`。fixture 模式只在 `vite dev` 時編譯進去，`vite build` 的產物裡這個開關固定為關閉。
+- 單元與整合測試涵蓋館方 API 的各種回應（沒有 `image_id`、非公有領域、429、5xx、逾時、不是 JSON）、搜尋參數驗證、IIIF 網址、作品說明解析、localStorage 的損毀與舊版資料、展覽的上限與重複、字典的中英一致性、JSON-LD 跳脫。
+- E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館方 API 改由 `lib/artic/dev-fixtures.ts` 的本機資料回應，IIIF 圖片在瀏覽器端攔截，所以結果不受館方伺服器影響。vinext 同一個專案只允許一個 dev server，跑 E2E 前要先停掉 `npm run dev`。
+- 無障礙掃描用 axe（WCAG 2.2 A／AA），範圍是中英文的首頁、搜尋、作品頁、受限作品、About、404、我的收藏、展覽頁，以及三個對話框打開時的狀態。
 
-環境變數見 `.env.example`。`AIC_CONTACT_EMAIL` 只在伺服器端使用，會放進送給館方 API 的 `AIC-User-Agent` 標頭。本機開發可以不填，正式上線要填一個有效的公開聯絡信箱。
+### CI
+
+GitHub Actions（`.github/workflows/`）：
+
+- `ci.yml`：每次 push 到 `main` 和 PR 時執行。一個 job 跑 `npm ci` → lint → typecheck → 單元測試 → build，另一個 job 跑 E2E；E2E 失敗時會上傳 Playwright 報告。
+- `smoke.yml`：每週一次與手動觸發，打真實館方 API。和主要 CI 分開，館方暫時出問題不會擋住合併。
+
+## 架構
+
+```text
+app/
+  [lang]/                    # /en 與 /zh-tw 底下的所有頁面
+    layout.tsx               # html lang、字型、導覽列、頁尾、字典 Provider
+    page.tsx                 # 首頁：3D 展廳 + 探索館藏
+    artworks/[id]/page.tsx   # 作品詳情
+    collection/page.tsx      # 我的收藏與展覽列表
+    collection/[exhibitionId]/page.tsx
+    about/page.tsx
+  api/artworks/              # 搜尋、批次 ids、單件作品（route handlers）
+  robots.ts, sitemap.ts
+proxy.ts                     # 沒有語言前綴的網址導向 /en 或 /zh-tw
+components/
+  gallery-room/              # three.js 展廳（場景、燈光、牆面、作品、鏡頭、點選）
+  discover/                  # 首頁 hero、搜尋、結果、分頁
+  artwork/                   # 作品卡片、圖片、完整圖片對話框
+  collections/               # 收藏按鈕、收藏牆、展覽
+  layout/, ui/               # 導覽列、頁尾、按鈕、對話框、圖示
+lib/
+  artic/                     # 館方 API：client、schema、mapper、查詢、圖片網址
+  collections/               # localStorage 的 schema、讀寫、hooks
+  i18n/                      # 語言設定、字典
+tests/                       # Vitest（unit、component、smoke）
+e2e/                         # Playwright
+```
+
+資料流：瀏覽器只跟本站溝通。頁面在伺服器端呼叫 `lib/artic`，它向館方 API 取資料、用 Zod 驗證、判斷能不能展示，再轉成網站自己的 `Artwork` 型別。收藏與展覽只存 id，顯示時由 `/api/artworks?ids=` 在伺服器端重新檢查。
 
 ## 資料來源與授權
 
 - API：[Art Institute of Chicago API](https://api.artic.edu/docs/)，圖片走館方的 IIIF Image API。所有對館方的請求都由伺服器端發出，館方對匿名請求的限制是每分鐘 60 次。
 - 只顯示 `is_public_domain` 為 `true` 且有 `image_id` 的作品圖片。圖片直接連結館方 IIIF，不下載到本 repo。
-- 作品 metadata 為 CC0；作品的 `description` 欄位是 CC BY 4.0，要顯示時必須標示來源。圖片的使用以館方的 [Image Licensing](https://www.artic.edu/image-licensing) 與 [Terms](https://www.artic.edu/terms) 為準。
+- 作品 metadata 為 CC0；作品的 `description` 欄位是 CC BY 4.0，網站上顯示時都會標示出處。圖片的使用以館方的 [Image Licensing](https://www.artic.edu/image-licensing) 與 [Terms](https://www.artic.edu/terms) 為準。
 - 網站上的來源標示：Image and artwork data courtesy of the Art Institute of Chicago。
 - 不提供高解析圖下載。
+- 本 repo 的程式碼目前還沒有選定開源授權。
+
+## 部署（尚未實際執行）
+
+以下是 vinext 對 Cloudflare Workers 的建議流程，Phase 6 實際部署後會依結果更新：
+
+1. 登入 Cloudflare：`npx cf auth login`；CI 等非互動環境改用 `CLOUDFLARE_API_TOKEN`（Edit Cloudflare Workers 範本）。
+2. 在 Worker 的設定裡加上 `AIC_CONTACT_EMAIL` 與 `SITE_URL`。
+3. `npm run deploy`。
+4. 評估是否開啟 KV 資料快取（`vinext init --platform=cloudflare --data-cache kv`），讓館方 API 的快取跨 Worker isolate 共用。
 
 ## 實作進度
 
@@ -52,13 +124,13 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 | Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 完成   |
 | Phase 3 | 中英雙語、作品詳情、收藏、E2E          | 完成   |
 | Phase 4 | 自訂策展清單                           | 完成   |
-| Phase 5 | 無障礙、SEO、README、GitHub Actions CI | 未開始 |
+| Phase 5 | 無障礙、SEO、README、GitHub Actions CI | 完成   |
 | Phase 6 | 部署到 Cloudflare Workers、正式站驗證  | 未開始 |
 
 ## 技術決策
 
 - 用 vinext 而不用 Next.js 加 OpenNext：要部署到 Cloudflare Workers，vinext 原生支援，建置也比較輕。程式碼照 Next.js App Router 的寫法，萬一碰到 vinext 解決不了的相容問題，可以換回 Next.js 加 OpenNext。
-- vinext 的 `next/image` 沒有建置期圖片最佳化，作品圖直接用館方 IIIF 的固定尺寸，加上 lazy loading 與明確的寬高。
+- vinext 的 `next/image` 沒有建置期圖片最佳化，作品圖直接用館方 IIIF 的固定尺寸，加上 lazy loading。圖片框依館方提供的長寬比排版，和實際載入哪個尺寸的檔案無關。
 - Cloudflare KV 資料快取與 Cloudflare Images 目前關閉，部署時再評估。在那之前 vinext 用記憶體快取，Workers 上不會跨 isolate 保留。
 - 程式碼直接放在根目錄的 `app/`、`components/`、`lib/`，路徑別名 `@/*` 指向專案根目錄。
 - 首頁 hero 是一間 three.js 展廳（`components/gallery-room/`）：作品照實際尺寸掛在牆上，每件有自己的投射燈，房間光照在瀏覽器裡預先烘焙。canvas 只是裝飾，標題、牆面標籤和上一件／下一件按鈕都在 HTML。沒有 WebGL 時保留靜態版面；開啟減少動態效果時不做鏡頭漂移，換作品直接切過去。
@@ -73,14 +145,14 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 - 網址是 `/en/...` 與 `/zh-tw/...`。`proxy.ts` 把沒有語言前綴的網址導向使用者選過的語言（cookie），沒選過就看瀏覽器的 `Accept-Language`，再沒有就英文。
 - 介面文字放在純字串字典（`{佔位符}`），server 與 client 元件共用；測試會檢查兩種語言的鍵與佔位符一致。
 - 館方作品資料只有英文，標題、作者、年代、媒材、說明維持原文並標上 `lang="en"`，搜尋也要用英文關鍵字。中文版的 About 與搜尋提示有寫明。
-- 導覽列的語言切換會保留目前頁面與搜尋條件。
+- 導覽列的語言切換會保留目前頁面與搜尋條件；連結文字是另一種語言的名稱，完整說明給螢幕閱讀器。
 
 ### 作品詳情與收藏
 
-- `/[lang]/artworks/[id]`：大圖（843px，srcset 到 1200px）、作品資料、館方連結、Open Graph。不存在或格式錯誤的 id 回 404；非公有領域或沒有圖片的作品顯示說明與館方連結，不顯示圖片。
-- 作品說明（CC BY 4.0）在伺服器端把館方的 HTML 拆成段落與斜體片段，用一般 React 元素輸出，不用 `dangerouslySetInnerHTML`，並標示出處。
+- `/[lang]/artworks/[id]`：大圖（843px，srcset 到 1200px）、作品資料、館方連結、Open Graph、JSON-LD（`VisualArtwork`）。不存在或格式錯誤的 id 回 404；非公有領域或沒有圖片的作品顯示說明與館方連結，不顯示圖片。
+- 作品說明（CC BY 4.0）在伺服器端把館方的 HTML 拆成段落與斜體片段，用一般 React 元素輸出，不用 `dangerouslySetInnerHTML`，並標示出處。JSON-LD 是唯一的 inline script，內容是我們自己組的 JSON，`<`、`>`、`&` 都轉成 `\u` 跳脫。
 - 完整圖片用原生 `<dialog>` 的 modal 模式：焦點限制在對話框內、Escape 關閉、關閉後焦點回到按鈕。最大只到館方對公有領域作品開放的 1686px。
-- 收藏存在 localStorage（`gallery-atlas:collection`），有版本號並用 Zod 逐筆驗證：損毀的 JSON 重設、舊版的純 id 陣列自動升級、重複與無效的項目移除、上限 500 件。讀取用 `useSyncExternalStore`，伺服器與 hydration 時一律視為空收藏，所以不會有 hydration 不一致；`storage` event 讓其他分頁同步。
+- 收藏存在 localStorage（`gallery-atlas:collection`），有版本號並用 Zod（`zod/mini`，瀏覽器端約 7 KB gzip）逐筆驗證：損毀的 JSON 重設、舊版的純 id 陣列自動升級、重複與無效的項目移除、上限 500 件。讀取用 `useSyncExternalStore`，伺服器與 hydration 時一律視為空收藏，所以不會有 hydration 不一致；`storage` event 讓其他分頁同步。
 - 「我的收藏」頁把收藏的 id 交給 `/api/artworks?ids=` 重新檢查，館方下架或不再是公有領域的作品會列為無法顯示，並提供一鍵移除。
 
 ### 自訂展覽
@@ -93,7 +165,7 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 
 ### 館方 API（`lib/artic/`）
 
-- 只有伺服器會呼叫館方 API：首頁的 Server Component，以及 `/api/artworks`（搜尋、批次 `ids`）、`/api/artworks/[id]` 兩個 route handler。
+- 只有伺服器會呼叫館方 API：頁面的 Server Component，以及 `/api/artworks`（搜尋、批次 `ids`）、`/api/artworks/[id]` 兩個 route handler。
 - 搜尋用 `GET /artworks/search?params=`，帶固定的 Elasticsearch 查詢：`is_public_domain: true`、`image_id` 存在、可選的 `artwork_type_id`。關鍵字用 `multi_match`（`cross_fields`、`operator: and`），把輸入當純文字比對標題、作者、主題等欄位，所以「monet water lilies」可以跨欄位命中，特殊字元也不會被當成查詢語法。頂層的 `q` 參數和放進 `params` 的 `q` 實測都不會過濾結果，所以沒有採用。
 - 使用者只能控制三件事：關鍵字（最多 100 字）、類型（白名單 7 種）、頁碼（1 到 83）。超過 1,000 筆的頁碼在伺服器端直接回錯誤訊息，不會打上游。
 - 能不能展示由伺服器判斷：`is_public_domain === true`、`image_id` 是館方的 UUID 格式、`config.iiif_url` 是館方自己的 IIIF 主機，三者都成立才會產生 `Artwork`。圖片寬度只用館方文件列的尺寸。
@@ -101,6 +173,12 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 - 請求帶 `User-Agent: GalleryAtlas/0.1`（Workers 的 fetch 預設不帶，館方的 Cloudflare 會對沒有 User-Agent 的請求回 403），以及館方要求的 `AIC-User-Agent`（有設定 `AIC_CONTACT_EMAIL` 才附信箱）。
 - 快取用 vinext 支援的 `fetch(..., { next: { revalidate } })`：搜尋 10 分鐘，作品 1 小時。
 - 首頁 3D 展廳的 8 件精選作品用批次 `ids` 即時讀取；API 失敗時改用 `lib/fixtures/preview-artworks.ts` 的快照（2026-11-18），頁面上會寫明是存下來的版本。
+
+### SEO
+
+- 首頁、About、作品頁有各自的 title、description 與 hreflang；作品頁另有 Open Graph 圖片與 JSON-LD。
+- `robots.txt` 排除 `/api/` 和兩種語言的「我的收藏」；`sitemap.xml` 列出兩種語言的首頁、About 和精選作品頁。需要設定 `SITE_URL` 才會輸出完整網址。
+- 搜尋結果頁與我的收藏標記 `noindex`。
 
 ## 暫時無法升級的套件
 
@@ -110,10 +188,9 @@ E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館�
 
 ## 已知問題
 
-- `npm audit` 還有上游套件的警告，沒有不降版的修正：picomatch（ReDoS，所有版本都受影響，經由 vite 與 vinext 在建置時比對檔案路徑）、fflate（經由 `@vercel/og`，本專案沒有用到 OG 圖片產生）。`npm audit fix --force` 會把 vinext 降到 0.2.1，所以不採用。
-- npm 擋下了 `workerd` 的 postinstall script，目前本機預覽仍可正常執行。
-- 館方 IIIF 圖片伺服器會對自動化環境回 Cloudflare challenge（403），所以開發時看不到真實作品圖，也還沒確認圖片有沒有回 CORS 標頭（3D 展廳的貼圖需要）。圖片載不到時，3D 畫框裡是空白的打底畫布，卡片顯示 Image unavailable。需要在一般瀏覽器裡再確認。
+- 館方 IIIF 圖片伺服器會對自動化環境回 Cloudflare challenge（403），所以開發時看不到真實作品圖，也還沒確認圖片有沒有回 CORS 標頭（3D 展廳的貼圖需要）。圖片載不到時，3D 畫框裡是空白的打底畫布，卡片顯示 Image unavailable。部署後要用一般瀏覽器確認。
 - 3D 展廳的效能只量過每幀成本（AMD Radeon 890M 內顯約 2 ms），沒有在實體手機上量過 fps。
-- 收藏的 Zod 驗證讓瀏覽器端多了約 24 KB（gzip）的 JS。之後評估改用 `zod/mini`。
+- `npm audit` 還有上游套件的警告，沒有不降版的修正：picomatch（ReDoS，所有版本都受影響，經由 vite 與 vinext 在建置時比對檔案路徑）、fflate（經由 `@vercel/og`，本專案沒有用到 OG 圖片產生）。`npm audit fix --force` 會把 vinext 降到 0.2.1，所以不採用。
+- npm 擋下了 `workerd` 的 postinstall script，目前本機預覽與建置仍可正常執行。
 - 每頁會把整份介面字典（約 5 KB）序列化給 client 元件使用，目前沒有按頁拆分。
 - 搜尋結果頁的 title 是依關鍵字動態產生的。一般瀏覽器和 Googlebot 會在 body 裡收到串流的 metadata，Twitterbot、facebookexternalhit 這類不執行 JS 的爬蟲則在 `<head>` 收到。這是 Next.js 的 streaming metadata 行為，vinext 照做。

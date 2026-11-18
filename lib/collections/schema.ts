@@ -3,7 +3,8 @@
  * be tested without a browser. Data from storage is never trusted: it may be missing,
  * corrupt, from an older version of the site, or edited by hand.
  */
-import { z } from "zod";
+// zod/mini: the same validation with a much smaller bundle, since this runs in the browser.
+import * as z from "zod/mini";
 
 export const STORAGE_KEY = "gallery-atlas:collection";
 export const STORAGE_VERSION = 1;
@@ -41,13 +42,13 @@ export const EMPTY_COLLECTION: CollectionState = Object.freeze({
   exhibitions: Object.freeze([]) as unknown as Exhibition[],
 }) as CollectionState;
 
-const artworkId = z.number().int().positive().max(999_999_999);
-const timestamp = z.number().int().nonnegative();
+const artworkId = z.int().check(z.positive(), z.maximum(999_999_999));
+const timestamp = z.int().check(z.nonnegative());
 
 const favoriteSchema = z.object({ id: artworkId, savedAt: timestamp });
 
 const exhibitionSchema = z.object({
-  id: z.string().min(1).max(64),
+  id: z.string().check(z.minLength(1), z.maxLength(64)),
   title: z.string(),
   artworkIds: z.array(z.unknown()),
   createdAt: timestamp,
@@ -55,9 +56,9 @@ const exhibitionSchema = z.object({
 });
 
 const envelopeSchema = z.object({
-  version: z.number().int(),
-  favorites: z.array(z.unknown()).optional(),
-  exhibitions: z.array(z.unknown()).optional(),
+  version: z.int(),
+  favorites: z.optional(z.array(z.unknown())),
+  exhibitions: z.optional(z.array(z.unknown())),
 });
 
 /** Trims and caps an exhibition title; empty titles are not allowed. */

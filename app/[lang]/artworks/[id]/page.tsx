@@ -23,6 +23,8 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { serializeJsonLd } from "@/lib/json-ld";
+import { absoluteUrl } from "@/lib/site";
 import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string; id: string }>;
@@ -152,6 +154,25 @@ function Restricted({
   );
 }
 
+/** schema.org VisualArtwork, for search engines. Built from our own mapped fields only. */
+function JsonLd({ artwork, locale }: { artwork: ArtworkDetail; locale: Locale }) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "VisualArtwork",
+    name: artwork.title,
+    url: absoluteUrl(localizePath(locale, `/artworks/${artwork.id}`)),
+    image: artwork.image.src,
+    ...(artwork.artist !== "Artist unknown" ? { creator: { "@type": "Person", name: artwork.artist } } : {}),
+    ...(artwork.dateDisplay ? { dateCreated: artwork.dateDisplay } : {}),
+    ...(artwork.medium ? { artMedium: artwork.medium } : {}),
+    ...(artwork.type ? { artform: artwork.type } : {}),
+    ...(artwork.origin ? { locationCreated: { "@type": "Place", name: artwork.origin } } : {}),
+    sameAs: artwork.sourceUrl,
+  };
+  // JSON-LD must be inline script text; serializeJsonLd escapes anything that could close the tag.
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }} />;
+}
+
 export default async function ArtworkPage({ params }: { params: Params }) {
   const { lang, id: rawId } = await params;
   const locale = localeOf(lang);
@@ -167,6 +188,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
 
   return (
     <article className="pb-24 sm:pb-32">
+      <JsonLd artwork={artwork} locale={locale} />
       <Container className="pt-8 sm:pt-10">
         <Link
           href={`${localizePath(locale, "/")}#explore`}
@@ -185,7 +207,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               image={artwork.image}
               sizes="(min-width: 1024px) 55vw, 92vw"
               priority
-              className="h-auto max-h-[70svh] w-auto max-w-full shadow-[0_30px_50px_-28px_rgb(34_33_31/0.6)]"
+              className={`${artwork.image.aspectRatio >= 1 ? "h-auto max-h-[70svh] w-full" : "h-[min(60svh,640px)] w-auto max-w-full"} object-contain shadow-[0_30px_50px_-28px_rgb(34_33_31/0.6)]`}
               fallbackClassName="w-full max-w-xl"
             />
           </div>
@@ -229,7 +251,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               href={artwork.sourceUrl}
               target="_blank"
               rel={EXTERNAL_REL}
-              className={buttonStyles({ variant: "quiet", size: "md" })}
+              className={buttonStyles({ variant: "quiet", size: "md", className: "px-0" })}
             >
               {t.viewAtMuseum}
               <ArrowUpRight className="size-4" />

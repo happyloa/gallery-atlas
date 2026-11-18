@@ -79,7 +79,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
               image={active.image}
               sizes="(min-width: 1024px) 55vw, 85vw"
               priority
-              className="h-auto max-h-full w-auto max-w-full border-[6px] border-[#2b2016] shadow-[0_30px_60px_-20px_rgb(0_0_0/0.8)] sm:border-8"
+              className="h-full w-auto max-w-full border-[6px] border-[#2b2016] object-contain shadow-[0_30px_60px_-20px_rgb(0_0_0/0.8)] sm:border-8"
               fallbackClassName="max-h-full w-full max-w-[min(100%,720px)] border-[6px] border-[#2b2016]"
             />
           ) : null}

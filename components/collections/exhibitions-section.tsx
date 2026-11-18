@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
+import { fitClass } from "@/lib/artwork/fit";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -130,7 +131,7 @@ export function ExhibitionsSection() {
                       <ArtworkImage
                         image={cover.image}
                         sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-                        className="h-auto max-h-full w-auto max-w-full shadow-[0_18px_30px_-18px_rgb(34_33_31/0.55)] transition-transform duration-300 ease-gallery group-hover:-translate-y-1"
+                        className={`${fitClass(cover.image.aspectRatio, 1.4)} shadow-[0_18px_30px_-18px_rgb(34_33_31/0.55)] transition-transform duration-300 ease-gallery group-hover:-translate-y-1`}
                         fallbackClassName="h-full w-full"
                       />
                     ) : (

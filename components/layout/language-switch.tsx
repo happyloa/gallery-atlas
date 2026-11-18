@@ -28,8 +28,6 @@ function SwitchLink({ query, overHero }: { query: string; overHero: boolean }) {
         document.cookie = `${LOCALE_COOKIE}=${otherLocale}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
       }}
       hrefLang={LOCALE_TAGS[otherLocale]}
-      lang={LOCALE_TAGS[otherLocale]}
-      aria-label={dict.site.switchLanguageLabel}
       className={cn(
         "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery",
         overHero
@@ -37,7 +35,9 @@ function SwitchLink({ query, overHero }: { query: string; overHero: boolean }) {
           : "border-ink/25 hover:border-ink",
       )}
     >
-      {dict.site.switchLanguage}
+      {/* The visible label stays the start of the accessible name (WCAG 2.5.3). */}
+      <span lang={LOCALE_TAGS[otherLocale]}>{dict.site.switchLanguage}</span>
+      <span className="sr-only">: {dict.site.switchLanguageLabel}</span>
     </Link>
   );
 }

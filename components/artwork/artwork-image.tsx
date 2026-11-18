@@ -38,7 +38,9 @@ export function ArtworkImage({
     return (
       <div
         role="img"
-        aria-label={format(dict.artwork.imageUnavailableLabel, { alt: image.alt })}
+        aria-label={format(dict.artwork.imageUnavailableLabel, {
+          alt: image.alt,
+        })}
         style={{ aspectRatio: image.aspectRatio }}
         className={cn(
           "flex items-center justify-center bg-[#e4dccd] bg-[repeating-linear-gradient(0deg,rgb(34_33_31/0.035)_0_1px,transparent_1px_3px),repeating-linear-gradient(90deg,rgb(34_33_31/0.03)_0_1px,transparent_1px_3px)] text-xs tracking-[0.14em] text-muted uppercase",
@@ -65,16 +67,18 @@ export function ArtworkImage({
       decoding="async"
       onError={() => setFailed(true)}
       className={className}
-      // The API's tiny blurred preview fills the box until the image arrives. The mapper only
-      // passes through validated base64 data URIs, so it is safe inside url().
-      style={
-        image.placeholder
+      style={{
+        // Layout follows the museum's recorded proportions, not whichever file width loaded.
+        aspectRatio: image.aspectRatio,
+        // The API's tiny blurred preview fills the box until the image arrives. The mapper only
+        // passes through validated base64 data URIs, so it is safe inside url().
+        ...(image.placeholder
           ? {
               backgroundImage: `url("${image.placeholder}")`,
               backgroundSize: "100% 100%",
             }
-          : undefined
-      }
+          : {}),
+      }}
     />
   );
 }

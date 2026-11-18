@@ -3,7 +3,11 @@ import type { ReactNode } from "react";
 import type { Artwork } from "@/lib/artwork/types";
 import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
+import { fitClass } from "@/lib/artwork/fit";
 import { ArtworkImage } from "./artwork-image";
+
+/** Each card is a 4:5 wall cell. */
+const CELL_RATIO = 4 / 5;
 
 const CARD_SIZES =
   "(min-width: 1280px) 22vw, (min-width: 1024px) 30vw, (min-width: 420px) 45vw, 90vw";
@@ -30,7 +34,7 @@ export function ArtworkCard({
         <ArtworkImage
           image={artwork.image}
           sizes={CARD_SIZES}
-          className="h-auto max-h-full w-auto max-w-full shadow-[0_18px_30px_-18px_rgb(34_33_31/0.55)] transition-transform duration-300 ease-gallery group-hover:-translate-y-1"
+          className={`${fitClass(artwork.image.aspectRatio, CELL_RATIO)} shadow-[0_18px_30px_-18px_rgb(34_33_31/0.55)] transition-transform duration-300 ease-gallery group-hover:-translate-y-1`}
           fallbackClassName="max-h-full w-full"
         />
       </div>
