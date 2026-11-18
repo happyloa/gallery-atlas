@@ -26,6 +26,8 @@ npm run deploy       # 部署到 Cloudflare Workers
 ```bash
 npm run lint
 npm run typecheck
+npm test             # 單元與整合測試，上游 API 全部 mock
+npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
 ```
 
 環境變數見 `.env.example`。`AIC_CONTACT_EMAIL` 只在伺服器端使用，會放進送給館方 API 的 `AIC-User-Agent` 標頭。本機開發可以不填，正式上線要填一個有效的公開聯絡信箱。
@@ -44,7 +46,7 @@ npm run typecheck
 | ------- | -------------------------------------- | ------ |
 | Phase 0 | 專案初始化、lint、型別檢查、建置       | 完成   |
 | Phase 1 | 版面、設計 token、共用元件、About      | 完成   |
-| Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 未開始 |
+| Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 完成   |
 | Phase 3 | 作品詳情、收藏                         | 未開始 |
 | Phase 4 | 自訂策展清單                           | 未開始 |
 | Phase 5 | 無障礙、SEO、README、GitHub Actions CI | 未開始 |
@@ -61,7 +63,17 @@ npm run typecheck
 - 圖示是自己畫的 inline SVG（`components/ui/icons.tsx`），沒有用 lucide-react。在 Workers 上 lucide-react 會被打包成循環依賴的 server chunk，執行時 React 還沒載入，每一頁都回 500。
 - 次要文字的灰色從規格的 `#77736E` 改成 `#6B6762`：原本在紙色背景上對比只有 4.2:1，改後 5.0:1，符合 WCAG AA。
 - 字型：標題 Newsreader，內文 Instrument Sans。
-- Phase 1 的作品是 2026-11-18 從 API 抓下的 12 件公有領域作品快照（`lib/fixtures/preview-artworks.ts`），頁面上標示為 preview。搜尋、篩選、分頁先做好版面但停用，Phase 2 接上即時資料後再開放。
+
+### 館方 API（`lib/artic/`）
+
+- 只有伺服器會呼叫館方 API：首頁的 Server Component，以及 `/api/artworks`（搜尋、批次 `ids`）、`/api/artworks/[id]` 兩個 route handler。
+- 搜尋用 `GET /artworks/search?params=`，帶固定的 Elasticsearch 查詢：`is_public_domain: true`、`image_id` 存在、可選的 `artwork_type_id`。關鍵字用 `multi_match`（`cross_fields`、`operator: and`），把輸入當純文字比對標題、作者、主題等欄位，所以「monet water lilies」可以跨欄位命中，特殊字元也不會被當成查詢語法。頂層的 `q` 參數和放進 `params` 的 `q` 實測都不會過濾結果，所以沒有採用。
+- 使用者只能控制三件事：關鍵字（最多 100 字）、類型（白名單 7 種）、頁碼（1 到 83）。超過 1,000 筆的頁碼在伺服器端直接回錯誤訊息，不會打上游。
+- 能不能展示由伺服器判斷：`is_public_domain === true`、`image_id` 是館方的 UUID 格式、`config.iiif_url` 是館方自己的 IIIF 主機，三者都成立才會產生 `Artwork`。圖片寬度只用館方文件列的尺寸。
+- client 有 9 秒逾時，5xx、逾時、網路錯誤最多重試 2 次（指數退避加抖動）；429 只在 `Retry-After` 不超過 5 秒時等一次，其他 4xx 不重試。
+- 請求帶 `User-Agent: GalleryAtlas/0.1`（Workers 的 fetch 預設不帶，館方的 Cloudflare 會對沒有 User-Agent 的請求回 403），以及館方要求的 `AIC-User-Agent`（有設定 `AIC_CONTACT_EMAIL` 才附信箱）。
+- 快取用 vinext 支援的 `fetch(..., { next: { revalidate } })`：搜尋 10 分鐘，作品 1 小時。
+- 首頁 3D 展廳的 8 件精選作品用批次 `ids` 即時讀取；API 失敗時改用 `lib/fixtures/preview-artworks.ts` 的快照（2026-11-18），頁面上會寫明是存下來的版本。
 
 ## 暫時無法升級的套件
 
@@ -75,3 +87,4 @@ npm run typecheck
 - npm 擋下了 `workerd` 的 postinstall script，目前本機預覽仍可正常執行。
 - 館方 IIIF 圖片伺服器會對自動化環境回 Cloudflare challenge（403），所以開發時看不到真實作品圖，也還沒確認圖片有沒有回 CORS 標頭（3D 展廳的貼圖需要）。圖片載不到時，3D 畫框裡是空白的打底畫布，卡片顯示 Image unavailable。需要在一般瀏覽器裡再確認。
 - 3D 展廳的效能只量過每幀成本（AMD Radeon 890M 內顯約 2 ms），沒有在實體手機上量過 fps。
+- 搜尋結果頁的 title 是依關鍵字動態產生的。一般瀏覽器和 Googlebot 會在 body 裡收到串流的 metadata，Twitterbot、facebookexternalhit 這類不執行 JS 的爬蟲則在 `<head>` 收到。這是 Next.js 的 streaming metadata 行為，vinext 照做。

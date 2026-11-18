@@ -1,0 +1,66 @@
+/**
+ * Zod schemas for the parts of AIC API responses this site reads. Upstream data is not
+ * trusted: every field is optional or nullable here, and records are validated one by one
+ * so a single malformed work cannot take down a whole page.
+ */
+import { z } from "zod";
+
+const text = z.string().nullish();
+
+export const rawThumbnailSchema = z
+  .object({
+    width: z.number().nullish(),
+    height: z.number().nullish(),
+    alt_text: text,
+    lqip: text,
+  })
+  .nullish();
+
+export const rawArtworkSchema = z.object({
+  id: z.number().int().positive(),
+  title: text,
+  artist_title: text,
+  artist_display: text,
+  date_display: text,
+  artwork_type_title: text,
+  medium_display: text,
+  dimensions: text,
+  place_of_origin: text,
+  image_id: text,
+  is_public_domain: z.boolean().nullish(),
+  thumbnail: rawThumbnailSchema,
+  credit_line: text,
+});
+
+export type RawArtwork = z.infer<typeof rawArtworkSchema>;
+
+export const rawConfigSchema = z
+  .object({
+    iiif_url: text,
+    website_url: text,
+  })
+  .nullish();
+
+export const paginationSchema = z.object({
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative(),
+  current_page: z.number().int().positive(),
+  total_pages: z.number().int().nonnegative(),
+});
+
+/** Records stay `unknown` until each is validated on its own by the mapper. */
+export const searchResponseSchema = z.object({
+  pagination: paginationSchema,
+  data: z.array(z.unknown()),
+  config: rawConfigSchema,
+});
+
+export const listResponseSchema = z.object({
+  data: z.array(z.unknown()),
+  config: rawConfigSchema,
+});
+
+export const detailResponseSchema = z.object({
+  data: z.unknown(),
+  config: rawConfigSchema,
+});

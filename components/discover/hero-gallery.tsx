@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 
 export interface HeroGalleryProps {
   artworks: readonly Artwork[];
-  /** Small line under the lede, e.g. that the works are a preview snapshot. */
+  /** Small caps line above the headline. */
+  eyebrow: string;
+  /** Small line under the lede, e.g. that the works are an offline snapshot. */
   note?: string;
 }
 
@@ -19,7 +21,7 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-export function HeroGallery({ artworks, note }: HeroGalleryProps) {
+export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = artworks[activeIndex];
   const count = artworks.length;
@@ -95,7 +97,7 @@ export function HeroGallery({ artworks, note }: HeroGalleryProps) {
       <div className="relative mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-5 pt-2 pb-12 sm:px-8 sm:pb-14 lg:pointer-events-none lg:absolute lg:inset-x-0 lg:bottom-0 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:*:pointer-events-auto">
         <div className="max-w-2xl">
           <p className="text-xs font-medium tracking-[0.2em] text-gallery-muted uppercase">
-            Room I · Preview hang
+            {eyebrow}
           </p>
           <h1
             id="hero-heading"

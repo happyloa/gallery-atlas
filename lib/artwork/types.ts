@@ -14,6 +14,8 @@ export interface ArtworkImage {
   /** Intrinsic width / height. Falls back to 4 / 5 when the API omits dimensions. */
   aspectRatio: number;
   alt: string;
+  /** Tiny base64 preview from the API (`thumbnail.lqip`), shown while the image loads. */
+  placeholder?: string | null;
 }
 
 export interface Artwork {

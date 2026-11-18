@@ -62,6 +62,16 @@ export function ArtworkImage({
       decoding="async"
       onError={() => setFailed(true)}
       className={className}
+      // The API's tiny blurred preview fills the box until the image arrives. The mapper only
+      // passes through validated base64 data URIs, so it is safe inside url().
+      style={
+        image.placeholder
+          ? {
+              backgroundImage: `url("${image.placeholder}")`,
+              backgroundSize: "100% 100%",
+            }
+          : undefined
+      }
     />
   );
 }

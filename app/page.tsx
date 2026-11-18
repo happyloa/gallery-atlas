@@ -1,11 +1,35 @@
+import type { Metadata } from "next";
 import { ExploreSection } from "@/components/discover/explore-section";
 import { HeroGallery } from "@/components/discover/hero-gallery";
-import {
-  PREVIEW_FIXTURE_DATE,
-  previewArtworks,
-} from "@/lib/fixtures/preview-artworks";
+import { ARTWORK_TYPES } from "@/lib/artic/config";
+import { getFeaturedArtworks } from "@/lib/artic/featured";
+import { parseSearchQuery } from "@/lib/artic/queries";
 
-const HERO_SIZE = 8;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const DESCRIPTION =
+  "Walk a room of public-domain paintings from the Art Institute of Chicago, then search and browse the collection.";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const { query } = parseSearchQuery(await searchParams);
+  const type = ARTWORK_TYPES.find((t) => t.slug === query.type)?.label;
+  const parts = [query.q && `“${query.q}”`, type].filter(Boolean);
+  if (parts.length === 0)
+    return {
+      title: { absolute: "Gallery Atlas · Public-domain art" },
+      description: DESCRIPTION,
+    };
+  // Search result pages are useful to visitors but thin for search engines.
+  return {
+    title: `${parts.join(" · ")} in the collection`,
+    description: DESCRIPTION,
+    robots: { index: false },
+  };
+}
 
 function formatDate(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
@@ -16,18 +40,29 @@ function formatDate(isoDate: string): string {
   });
 }
 
-export default function Home() {
-  const snapshotDate = formatDate(PREVIEW_FIXTURE_DATE);
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const parsed = parseSearchQuery(await searchParams);
+  const featured = await getFeaturedArtworks();
+  const live = featured.source === "live";
 
   return (
     <>
       <HeroGallery
-        artworks={previewArtworks.slice(0, HERO_SIZE)}
-        note={`Preview hang: a snapshot of public-domain works from the museum's API, taken ${snapshotDate}.`}
+        artworks={featured.artworks}
+        eyebrow={live ? "Room I · Highlights" : "Room I · Saved snapshot"}
+        note={
+          live || !featured.snapshotDate
+            ? undefined
+            : `The museum’s collection couldn’t be reached, so this room shows works saved on ${formatDate(featured.snapshotDate)}.`
+        }
       />
       <ExploreSection
-        artworks={previewArtworks}
-        previewNotice={`Preview snapshot from ${snapshotDate}. Live search and filters are coming next.`}
+        query={parsed.query}
+        error={parsed.ok ? undefined : parsed.error}
       />
     </>
   );
