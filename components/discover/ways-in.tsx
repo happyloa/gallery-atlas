@@ -52,9 +52,6 @@ export async function WaysIn({
               {t.heading}
             </h2>
           </div>
-          <p className="max-w-lg text-base leading-7 text-ink/80 lg:justify-self-end">
-            {t.intro}
-          </p>
         </Reveal>
 
         <ul className="mt-16 grid grid-cols-2 gap-x-5 gap-y-10 sm:gap-x-8 lg:grid-cols-4">
@@ -175,7 +172,6 @@ export async function WaysIn({
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-xs text-muted">{t.colorsHint}</p>
             </Reveal>
           ) : null}
         </div>

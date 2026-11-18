@@ -102,9 +102,6 @@ export default async function ExhibitionsPage({
           <h1 className="mt-5 font-serif text-5xl leading-[1.02] tracking-tight sm:text-6xl">
             {t.heading}
           </h1>
-          <p className="mt-6 text-base leading-7 text-ink/80 sm:text-lg">
-            {t.intro}
-          </p>
         </header>
       </Container>
 

@@ -100,7 +100,7 @@ test("an artist page shows the biography and its credit", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Georges Seurat" }),
   ).toBeVisible();
   await expect(page.getByText(/Fixture biography for/)).toBeVisible();
-  await expect(page.getByText(/藝術家介紹來自芝加哥藝術博物館/)).toBeVisible();
+  await expect(page.getByText("介紹：芝加哥藝術博物館，CC BY 4.0。")).toBeVisible();
   await expect(page.getByRole("link", { name: JATTE })).toBeVisible();
 
   const missing = await page.goto("/en/artists/999999");

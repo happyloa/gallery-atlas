@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dayNumber,
   exhibitionStatus,
+  getRandomArtworkId,
   getSounds,
   getSuggestions,
   getWorkOfTheDayId,
@@ -134,19 +135,47 @@ describe("suggestions, random and daily picks", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("asks for the same work all day", async () => {
-    const fetchMock = vi.fn(async (_url: string) =>
-      jsonResponse({ data: [{ id: 28560 }] }),
+  it("picks the same highlight all day and another one the next day", async () => {
+    const pages: number[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const params = JSON.parse(
+          decodeURIComponent(String(url).split("params=")[1] ?? "{}"),
+        ) as { limit?: number; page?: number; query?: unknown };
+        expect(JSON.stringify(params.query)).toContain('"is_boosted":true');
+        if (params.limit === 0)
+          return jsonResponse({ pagination: { total: 228 }, data: [] });
+        pages.push(params.page ?? 0);
+        return jsonResponse({ data: [{ id: 1000 + (params.page ?? 0) }] });
+      }),
     );
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(
-      getWorkOfTheDayId(new Date("2026-11-18T23:00:00Z")),
-    ).resolves.toBe(28560);
-    const url = decodeURIComponent(String(fetchMock.mock.calls[0]?.[0]));
-    expect(url).toContain(
-      `"seed":${dayNumber(new Date("2026-11-18T01:00:00Z"))}`,
+    const morning = await getWorkOfTheDayId(new Date("2026-11-18T01:00:00Z"));
+    const night = await getWorkOfTheDayId(new Date("2026-11-18T23:00:00Z"));
+    const tomorrow = await getWorkOfTheDayId(new Date("2026-11-19T12:00:00Z"));
+    expect(morning).toBe(night);
+    expect(tomorrow).not.toBe(morning);
+    expect(pages.every((page) => page >= 1 && page <= 228)).toBe(true);
+    expect(dayNumber(new Date("2026-11-18T23:59:59Z"))).toBe(
+      dayNumber(new Date("2026-11-18T00:00:00Z")),
     );
-    expect(url).toContain('"is_boosted":true');
+  });
+
+  it("picks a random work near a random point in the id range", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const text = decodeURIComponent(String(url));
+        if (text.includes('"gte"'))
+          return jsonResponse({ data: [{ id: 15 }, { id: 16 }, { id: 17 }] });
+        if (text.includes('"desc"'))
+          return jsonResponse({ data: [{ id: 20 }] });
+        return jsonResponse({ data: [{ id: 10 }] });
+      }),
+    );
+    // Cursor 10 + floor(0.5 × 11) = 15, then the middle of [15, 16, 17].
+    await expect(getRandomArtworkId(() => 0.5)).resolves.toBe(16);
+    await expect(getRandomArtworkId(() => 0)).resolves.toBe(15);
   });
 
   it("gives no daily work when the API fails", async () => {

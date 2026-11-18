@@ -20,7 +20,6 @@ export function NotFoundContent() {
         </Link>
       }
     >
-      <p>{dict.errors.notFoundBody}</p>
     </EmptyState>
   );
 }

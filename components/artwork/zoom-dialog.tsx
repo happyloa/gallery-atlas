@@ -270,9 +270,6 @@ export function ZoomDialog({
             </div>
           )}
 
-          <p className="border-t border-white/10 px-4 py-2 text-xs text-gallery-muted sm:px-6">
-            {deep ? t.deepHint : format(t.maxSize, { width: ZOOM_WIDTH })}
-          </p>
         </div>
       </dialog>
     </>

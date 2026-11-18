@@ -38,7 +38,6 @@ export default function ErrorPage({
         </>
       }
     >
-      <p>{t.body}</p>
     </EmptyState>
   );
 }

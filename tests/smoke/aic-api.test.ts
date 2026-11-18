@@ -133,7 +133,7 @@ describe("Art Institute of Chicago API (live)", () => {
 
   it("suggests, picks random and daily works, and counts places", async () => {
     expect(await getSuggestions("monet")).toContain("Claude Monet");
-    expect(await getRandomArtworkId(42)).toBeGreaterThan(0);
+    expect(await getRandomArtworkId()).toBeGreaterThan(0);
     expect(await getWorkOfTheDayId(new Date())).toBeGreaterThan(0);
     const places = await getPlaceCounts();
     expect(places?.get("france")).toBeGreaterThan(1000);

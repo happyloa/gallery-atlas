@@ -44,7 +44,7 @@ export function ResultsError({
       }
     >
       <p>
-        {message} {t.errorRest}
+        {message}
       </p>
     </EmptyState>
   );

@@ -363,35 +363,77 @@ export async function getSuggestions(prefix: string): Promise<string[]> {
 /* Random and daily works ------------------------------------------------------------- */
 
 const idList = z.object({
+  pagination: z.object({ total: z.number().int().nonnegative() }).partial().nullish(),
   data: z.array(z.object({ id: z.number().int().positive() })),
 });
 
-async function randomId(
-  seed: number,
-  pool: unknown[],
+async function searchIds(
+  params: Record<string, unknown>,
   revalidate: number,
-): Promise<number | null> {
-  const params = {
-    query: {
-      function_score: {
-        query: { bool: { filter: [...DISPLAYABLE, ...pool] } },
-        random_score: { seed, field: "id" },
-        boost_mode: "replace",
-      },
-    },
-    fields: "id",
-    limit: 1,
-  };
+): Promise<{ ids: number[]; total: number } | null> {
   const json = await aicGet(
     `/artworks/search?params=${encodeURIComponent(JSON.stringify(params))}`,
     { revalidate, timeoutMs: 5000, retries: 1 },
   );
-  return idList.safeParse(json).data?.data[0]?.id ?? null;
+  const parsed = idList.safeParse(json);
+  if (!parsed.success) return null;
+  return {
+    ids: parsed.data.data.map((record) => record.id),
+    total: parsed.data.pagination?.total ?? parsed.data.data.length,
+  };
 }
 
-/** A random work that the museum has written about. Not cached: every call differs. */
-export function getRandomArtworkId(seed: number): Promise<number | null> {
-  return randomId(seed, [{ exists: { field: "description" } }], 0);
+/**
+ * The museum's search ranks by its own popularity boost and ignores `random_score`
+ * (checked 2026-11-18: every seed returned The Bedroom first). So randomness comes from
+ * here instead: a random point in the id range, then a random pick near it.
+ */
+const RANDOM_POOL = [...DISPLAYABLE, { exists: { field: "description" } }];
+const NEAR = 20;
+
+/** Lowest and highest id in the pool, cached for a day. */
+async function idRange(pool: unknown[]): Promise<{ min: number; max: number } | null> {
+  const edge = (order: "asc" | "desc") =>
+    searchIds(
+      { query: { bool: { filter: pool } }, sort: [{ id: order }], fields: "id", limit: 1 },
+      REVALIDATE_REFERENCE,
+    );
+  const [low, high] = await Promise.all([edge("asc"), edge("desc")]);
+  const min = low?.ids[0];
+  const max = high?.ids[0];
+  return min !== undefined && max !== undefined ? { min, max } : null;
+}
+
+/** A random public-domain work the museum has written about. */
+export async function getRandomArtworkId(
+  random: () => number = Math.random,
+): Promise<number | null> {
+  const range = await idRange(RANDOM_POOL);
+  if (!range) return null;
+  const cursor = range.min + Math.floor(random() * (range.max - range.min + 1));
+  // Uncached: each cursor is new, and a cache entry per visit would only pile up.
+  const after = await searchIds(
+    {
+      query: { bool: { filter: [...RANDOM_POOL, { range: { id: { gte: cursor } } }] } },
+      sort: [{ id: "asc" }],
+      fields: "id",
+      limit: NEAR,
+    },
+    0,
+  );
+  const near = after?.ids.length
+    ? after
+    : await searchIds(
+        {
+          query: { bool: { filter: [...RANDOM_POOL, { range: { id: { lt: cursor } } }] } },
+          sort: [{ id: "desc" }],
+          fields: "id",
+          limit: NEAR,
+        },
+        0,
+      );
+  const ids = near?.ids ?? [];
+  return ids[Math.floor(random() * ids.length)] ?? null;
 }
 
 /** Days since 1970-01-01 (UTC) for `date`: the same number all day, everywhere. */
@@ -399,14 +441,35 @@ export function dayNumber(date: Date): number {
   return Math.floor(date.getTime() / 86_400_000);
 }
 
-/** One of the museum's highlighted works, the same one for everybody all day. */
+/** Spreads consecutive days across the list, so neighbouring ids don't follow each other. */
+function scatter(day: number): number {
+  let h = Math.imul(day ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+const DAILY_POOL = [...DISPLAYABLE, { term: { is_boosted: true } }];
+
+/** One of the museum's highlighted works, the same one for everybody all day (UTC). */
 export async function getWorkOfTheDayId(date: Date): Promise<number | null> {
   try {
-    return await randomId(
-      dayNumber(date),
-      [{ term: { is_boosted: true } }],
+    const count = await searchIds(
+      { query: { bool: { filter: DAILY_POOL } }, fields: "id", limit: 0 },
+      REVALIDATE_REFERENCE,
+    );
+    const total = Math.min(count?.total ?? 0, 1000);
+    if (total === 0) return null;
+    const pick = await searchIds(
+      {
+        query: { bool: { filter: DAILY_POOL } },
+        sort: [{ id: "asc" }],
+        fields: "id",
+        limit: 1,
+        page: (scatter(dayNumber(date)) % total) + 1,
+      },
       REVALIDATE_ARTWORK,
     );
+    return pick?.ids[0] ?? null;
   } catch {
     return null;
   }

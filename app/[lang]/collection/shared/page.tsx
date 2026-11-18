@@ -43,7 +43,6 @@ export default async function SharedExhibitionPage({
     return (
       <Container className="py-16 sm:py-24">
         <EmptyState headingLevel="h1" title={t.invalidTitle}>
-          <p>{t.invalidBody}</p>
         </EmptyState>
       </Container>
     );

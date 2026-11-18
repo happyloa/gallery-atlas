@@ -13,7 +13,7 @@ test("create an exhibition, fill it, rename it, and delete it", async ({
   const picker = page.getByRole("dialog", { name: "Add to an exhibition" });
   await expect(picker).toBeVisible();
   await expect(
-    picker.getByText("You don’t have any exhibitions yet."),
+    picker.getByText("No exhibitions yet."),
   ).toBeVisible();
   await picker.getByLabel("New exhibition name").fill("Night scenes");
   await picker.getByRole("button", { name: "Create and add" }).click();

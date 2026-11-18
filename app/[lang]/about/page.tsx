@@ -82,31 +82,27 @@ function EnglishAbout({ newTab }: { newTab: string }) {
 
       <Section title="The project">
         <p>
-          Gallery Atlas lets you wander through public-domain works from the Art
-          Institute of Chicago the way you would walk a museum: one room, one
-          painting at a time. You can search the collection, keep the works you
-          love, and put together small exhibitions of your own.
+          Gallery Atlas shows public-domain works from the Art Institute of
+          Chicago. Search the collection, save works, and make exhibitions of
+          your own.
         </p>
         <p>
-          There are no accounts. Favorites and exhibitions are saved in your
-          browser, so they stay on this device and don&apos;t sync to others.
+          No accounts. Favorites and exhibitions are saved in this browser and
+          don&apos;t sync to other devices.
         </p>
       </Section>
 
       <Section title="Data and images">
         <p>
-          Artwork data and images come from the{" "}
+          Data and images come from the{" "}
           <ExternalLink href="https://api.artic.edu/docs/" newTab={newTab}>
             Art Institute of Chicago public API
           </ExternalLink>
-          . Images are loaded directly from the museum&apos;s IIIF image server
-          at the sizes it allows. Gallery Atlas only shows images of works the
-          museum marks as public domain.
+          . Only works the museum marks as public domain are shown.
         </p>
         <p>
-          Artwork metadata is released under CC0. Artwork descriptions are
-          licensed CC BY 4.0 and are credited wherever they appear. For how
-          images may be used, the museum&apos;s{" "}
+          Metadata: CC0. Descriptions: CC BY 4.0. Images are used under the
+          museum&apos;s{" "}
           <ExternalLink
             href="https://www.artic.edu/image-licensing"
             newTab={newTab}
@@ -116,31 +112,31 @@ function EnglishAbout({ newTab }: { newTab: string }) {
           and{" "}
           <ExternalLink href="https://www.artic.edu/terms" newTab={newTab}>
             terms
-          </ExternalLink>{" "}
-          take precedence. This site does not offer image downloads.
+          </ExternalLink>
+          .
         </p>
         <p>Image and artwork data courtesy of the Art Institute of Chicago.</p>
       </Section>
 
       <Section title="Independence">
         <p>
-          This is an independent project and is not affiliated with the Art
-          Institute of Chicago. It does not use the museum&apos;s logo, and
-          nothing here is endorsed by the museum.
+          An independent project, not affiliated with or endorsed by the Art
+          Institute of Chicago.
         </p>
       </Section>
 
       <Section title="How it’s built">
         <p>
-          Next.js App Router APIs running on vinext and Vite, React, TypeScript,
-          Tailwind CSS and three.js, deployed to Cloudflare Workers. Requests to
-          the museum&apos;s API are made on the server and cached, to stay well
-          within its rate limits.
+          vinext (Next.js App Router APIs on Vite), React, TypeScript, Tailwind
+          CSS and three.js, on Cloudflare Workers.
         </p>
         <p>
-          Source code and developer:{" "}
-          <ExternalLink href="https://github.com/happyloa" newTab={newTab}>
-            github.com/happyloa
+          Source code:{" "}
+          <ExternalLink
+            href="https://github.com/happyloa/gallery-atlas"
+            newTab={newTab}
+          >
+            github.com/happyloa/gallery-atlas
           </ExternalLink>
         </p>
       </Section>
@@ -163,47 +159,38 @@ function ChineseAbout({ newTab }: { newTab: string }) {
       <Section title="這個專案">
         <p>
           Gallery Atlas
-          讓你像逛美術館一樣，一間展廳、一幅畫地看芝加哥藝術博物館的公有領域作品。你可以搜尋館藏、收藏喜歡的作品，也可以自己策劃小型展覽。
+          展示芝加哥藝術博物館的公有領域作品。可以搜尋館藏、收藏作品，也能自己策劃展覽。
         </p>
-        <p>
-          網站不需要註冊帳號。收藏和展覽都存在你的瀏覽器裡，只留在這台裝置上，不會同步到其他裝置。
-        </p>
+        <p>不需要帳號。收藏和展覽存在這個瀏覽器，不會同步到其他裝置。</p>
       </Section>
 
       <Section title="資料與圖片">
         <p>
-          作品資料與圖片來自
+          資料與圖片來自
           <ExternalLink href="https://api.artic.edu/docs/" newTab={newTab}>
             芝加哥藝術博物館的公開 API
           </ExternalLink>
-          。圖片直接從館方的 IIIF
-          圖片伺服器載入，只使用館方開放的尺寸，而且只顯示館方標示為公有領域的作品。
+          ，只顯示館方標示為公有領域的作品。館方資料只有英文，作品名稱、作者等資訊維持原文，搜尋請用英文。
         </p>
         <p>
-          館方的作品資料只有英文，所以作品名稱、作者、年代、媒材這些資訊會維持英文原文，介面文字則有中文。搜尋館藏時也請用英文關鍵字。
-        </p>
-        <p>
-          作品資料以 CC0 釋出；作品說明的授權是 CC BY
-          4.0，出現的地方都會標示來源。圖片的使用方式以館方的
+          作品資料：CC0。作品說明：CC BY 4.0。圖片依館方的
           <ExternalLink
             href="https://www.artic.edu/image-licensing"
             newTab={newTab}
           >
-            圖片授權說明
+            圖片授權
           </ExternalLink>
-          和
+          與
           <ExternalLink href="https://www.artic.edu/terms" newTab={newTab}>
             使用條款
           </ExternalLink>
-          為準。本站不提供圖片下載。
+          使用。
         </p>
         <p>Image and artwork data courtesy of the Art Institute of Chicago.</p>
       </Section>
 
       <Section title="獨立專案聲明">
-        <p>
-          本站是獨立的個人專案，與芝加哥藝術博物館沒有任何關係，沒有使用館方標誌，內容也沒有經過館方認可。
-        </p>
+        <p>本站是獨立的個人專案，與芝加哥藝術博物館無關，也未經館方認可。</p>
         <p lang="en">
           This is an independent project and is not affiliated with the Art
           Institute of Chicago.
@@ -212,15 +199,17 @@ function ChineseAbout({ newTab }: { newTab: string }) {
 
       <Section title="使用的技術">
         <p>
-          以 vinext 和 Vite 執行 Next.js App Router API，搭配
-          React、TypeScript、Tailwind CSS 與 three.js，部署在 Cloudflare
-          Workers。所有對館方 API
-          的請求都由伺服器發出並加上快取，避免超過館方的流量限制。
+          vinext（在 Vite 上執行的 Next.js App Router
+          API）、React、TypeScript、Tailwind CSS、three.js，部署在 Cloudflare
+          Workers。
         </p>
         <p>
-          原始碼與開發者：
-          <ExternalLink href="https://github.com/happyloa" newTab={newTab}>
-            github.com/happyloa
+          原始碼：
+          <ExternalLink
+            href="https://github.com/happyloa/gallery-atlas"
+            newTab={newTab}
+          >
+            github.com/happyloa/gallery-atlas
           </ExternalLink>
         </p>
       </Section>

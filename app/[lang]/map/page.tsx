@@ -81,9 +81,6 @@ export default async function MapPage({ params }: { params: Params }) {
             >
               {t.heading}
             </h1>
-            <p className="mt-6 text-base leading-7 text-gallery-text/80 sm:text-lg">
-              {t.intro}
-            </p>
           </header>
         </Container>
         <div className="mx-auto max-w-[1440px] animate-fade-in px-2 pb-12 [animation-delay:calc(var(--intro-delay)+300ms)] sm:px-8 lg:px-12">
@@ -120,9 +117,6 @@ export default async function MapPage({ params }: { params: Params }) {
               );
             })}
           </svg>
-          <p className="mt-4 px-3 text-xs text-gallery-muted sm:px-0">
-            {t.note}
-          </p>
         </div>
       </section>
 

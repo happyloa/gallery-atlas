@@ -117,7 +117,6 @@ export function ExhibitionsSection() {
       ) : collection.exhibitions.length === 0 ? (
         <div className="mt-8 max-w-xl text-muted">
           <p className="font-serif text-xl text-ink">{t.emptyTitle}</p>
-          <p className="mt-2 text-sm">{t.emptyBody}</p>
         </div>
       ) : (
         <ul className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">

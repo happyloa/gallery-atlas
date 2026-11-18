@@ -59,7 +59,6 @@ export async function DailyWork({
             {artwork.dateDisplay}
           </p>
         ) : null}
-        <p className="mt-6 text-sm text-muted">{t.note}</p>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link href={href} className={buttonStyles()}>
             {t.view}
