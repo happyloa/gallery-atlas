@@ -53,8 +53,11 @@ export function decodeEntities(text: string): string {
  */
 export function parseDescription(
   html: string | null | undefined,
+  limits: { maxParagraphs?: number; maxChars?: number } = {},
 ): DescriptionParagraph[] | null {
   if (!html) return null;
+  const maxChars = limits.maxChars ?? MAX_TOTAL_CHARS;
+  const maxParagraphs = limits.maxParagraphs ?? MAX_PARAGRAPHS;
 
   const paragraphs: DescriptionParagraph[] = [];
   let current: TextRun[] = [];
@@ -68,10 +71,10 @@ export function parseDescription(
     current = [];
   };
   const pushText = (raw: string) => {
-    if (skipDepth > 0 || total >= MAX_TOTAL_CHARS) return;
+    if (skipDepth > 0 || total >= maxChars) return;
     let text = decodeEntities(raw).replace(/\s+/g, " ");
     if (!text) return;
-    text = text.slice(0, MAX_TOTAL_CHARS - total);
+    text = text.slice(0, maxChars - total);
     total += text.length;
     const italic = italicDepth > 0;
     const last = current[current.length - 1];
@@ -101,7 +104,7 @@ export function parseDescription(
   pushText(html.slice(cursor));
   flush();
 
-  const limited = paragraphs.slice(0, MAX_PARAGRAPHS);
+  const limited = paragraphs.slice(0, maxParagraphs);
   return limited.length > 0 ? limited : null;
 }
 

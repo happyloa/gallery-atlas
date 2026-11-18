@@ -11,6 +11,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const paths = [
     "/",
     "/about",
+    "/exhibitions",
+    "/galleries",
+    "/tours",
+    "/map",
     ...FEATURED_ARTWORK_IDS.map((id) => `/artworks/${id}`),
   ];
   return paths.flatMap((path) =>

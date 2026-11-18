@@ -130,7 +130,7 @@ export default async function ExhibitionsPage({
                           <span
                             aria-hidden="true"
                             lang="en"
-                            className="line-clamp-4 px-2 text-center font-serif text-3xl leading-tight text-ink/35 italic transition-colors duration-500 group-hover:text-ink/55"
+                            className="line-clamp-4 px-2 text-center font-serif text-3xl leading-tight text-ink/60 italic transition-colors duration-500 group-hover:text-ink/80"
                           >
                             {exhibition.title}
                           </span>

@@ -4,7 +4,9 @@ import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight, ArrowUpRight, Plus } from "@/components/ui/icons";
 import { getMoreByArtist } from "@/lib/artic/artworks";
 import { UNKNOWN_ARTIST } from "@/lib/artic/mapper";
+import { Transcript } from "@/components/tours/transcript";
 import { getFurtherReading, getSounds } from "@/lib/artic/museum";
+import { getArtworkAudio } from "@/lib/artic/tours";
 import { placeByKey } from "@/lib/geo/places";
 import { EXTERNAL_REL } from "@/lib/utils";
 import type { TagKind } from "@/lib/artic/config";
@@ -280,17 +282,32 @@ export async function MoreByArtist({
   );
 }
 
-/** The museum's recordings for this work: audio guide stops and talks. */
+/** The museum's recordings of this work, with transcripts, and the tours it is part of. */
 export async function AudioGuide({
   artwork,
+  locale,
   dict,
 }: {
   artwork: ArtworkDetail;
+  locale: Locale;
   dict: Dictionary;
 }) {
-  const sounds = await getSounds(artwork.soundIds);
-  if (sounds.length === 0) return null;
+  const [guide, sounds] = await Promise.all([
+    getArtworkAudio(artwork.id),
+    getSounds(artwork.soundIds),
+  ]);
+  // Numbered stops in the older list are the same recordings as the guide's.
+  const talks =
+    guide.recordings.length > 0 ? sounds.filter((s) => s.stop === null) : sounds;
+  if (
+    guide.recordings.length === 0 &&
+    talks.length === 0 &&
+    guide.tours.length === 0
+  )
+    return null;
   const t = dict.detail;
+  const zh = locale === "zh-tw";
+
   return (
     <section aria-labelledby="listen" className="mt-12">
       <h2
@@ -299,8 +316,34 @@ export async function AudioGuide({
       >
         {t.listen}
       </h2>
-      <ul className="mt-4 space-y-4">
-        {sounds.map((sound) => {
+      <ul className="mt-4 space-y-6">
+        {guide.recordings.map((recording) => {
+          const mandarin = zh && Boolean(recording.zhSrc);
+          const label =
+            (mandarin && recording.zhTitle) || recording.title || artwork.title;
+          return (
+            <li key={recording.soundId}>
+              <p lang={mandarin ? undefined : "en"} className="text-sm text-ink/85">
+                {label}
+              </p>
+              {/* The transcript follows in the disclosure below. */}
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio
+                controls
+                preload="none"
+                src={(mandarin ? recording.zhSrc : recording.src) ?? recording.zhSrc ?? undefined}
+                aria-label={label}
+                className="mt-2 h-10 w-full"
+              />
+              <Transcript
+                soundId={recording.soundId}
+                transcript={recording.transcript}
+                chinese={mandarin}
+              />
+            </li>
+          );
+        })}
+        {talks.map((sound) => {
           const label =
             sound.stop !== null
               ? format(t.audioStop, { stop: sound.stop })
@@ -313,8 +356,7 @@ export async function AudioGuide({
               >
                 {label}
               </p>
-              {/* Recordings stream from artic.edu only when played. The museum publishes no
-                  captions or transcripts for them, which the credit below says plainly. */}
+              {/* Talks stream from artic.edu when played; the museum has no transcript for them. */}
               {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <audio
                 controls
@@ -327,7 +369,26 @@ export async function AudioGuide({
           );
         })}
       </ul>
-      <p className="mt-3 text-xs text-muted">{t.audioCredit}</p>
+      {guide.tours.length > 0 ? (
+        <p className="mt-5 text-sm">
+          <span className="text-muted">{dict.tours.onTours}：</span>
+          {guide.tours.map((tour, index) => (
+            <span key={tour.id}>
+              {index > 0 ? "、" : null}
+              <Link
+                href={localizePath(locale, `/tours/${tour.id}`)}
+                lang={zh && tour.zhTitle ? undefined : "en"}
+                className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+              >
+                {(zh && tour.zhTitle) || tour.title}
+              </Link>
+            </span>
+          ))}
+        </p>
+      ) : null}
+      <p className="mt-3 text-xs text-muted">
+        {guide.recordings.length > 0 ? dict.tours.credit : t.audioCredit}
+      </p>
     </section>
   );
 }

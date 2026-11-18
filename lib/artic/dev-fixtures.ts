@@ -9,6 +9,7 @@
  */
 import { previewArtworks } from "@/lib/fixtures/preview-artworks";
 import { ARTWORK_TYPES } from "./config";
+import { TOUR_INDEX } from "./tour-index";
 
 const IIIF_URL = "https://www.artic.edu/iiif/2";
 
@@ -269,6 +270,15 @@ const CONFIG = { iiif_url: IIIF_URL, website_url: "https://www.artic.edu" };
 
 class FixtureNotFound extends Error {}
 
+function fixtureTour(id: number) {
+  return {
+    id,
+    title: id === 2193 ? "The Essentials Tour" : `Fixture tour ${id}`,
+    description: "<p>A fixture tour description.</p>",
+    intro: "<p>A fixture tour introduction.</p>",
+  };
+}
+
 function select(record: Raw, fields: string[] | null): Record<string, unknown> {
   if (!fields) return record;
   return Object.fromEntries(
@@ -528,6 +538,32 @@ export function fixtureResponse(path: string): unknown {
     return {
       pagination: { total: all.length },
       data: page === 1 ? all : [],
+      config: CONFIG,
+    };
+  }
+
+  if (url.pathname === "/tours") {
+    return {
+      pagination: { total: TOUR_INDEX.tours.length },
+      data: TOUR_INDEX.tours.map((tour) => fixtureTour(tour.id)),
+      config: CONFIG,
+    };
+  }
+  const tour = /^\/tours\/(\d+)$/.exec(url.pathname);
+  if (tour) {
+    if (!TOUR_INDEX.tours.some((t) => t.id === Number(tour[1])))
+      throw new FixtureNotFound();
+    return { data: fixtureTour(Number(tour[1])), config: CONFIG };
+  }
+  if (url.pathname === "/mobile-sounds") {
+    const ids = (url.searchParams.get("ids") ?? "").split(",").map(Number);
+    return {
+      data: ids.map((id) => ({
+        id,
+        title: `Recording ${id}`,
+        web_url: `https://www.artic.edu/mobile/audio/fixture-${id}.mp3`,
+        transcript: `<p>Fixture transcript ${id}.</p>`,
+      })),
       config: CONFIG,
     };
   }

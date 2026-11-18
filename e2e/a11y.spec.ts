@@ -84,6 +84,8 @@ for (const path of [
   "/en/exhibitions/9001",
   "/zh-tw/map",
   "/zh-tw/galleries",
+  "/en/tours",
+  "/zh-tw/tours/2193",
   "/en/galleries/2147478672",
   "/en/collection/shared?title=Evening%20light&ids=27992,28560",
 ]) {

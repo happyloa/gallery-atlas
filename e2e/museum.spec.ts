@@ -48,10 +48,10 @@ test("a work offers its audio guide, further reading and its place of origin", a
 }) => {
   await gotoReady(page, "/en/artworks/27992");
   const listen = page.getByRole("region", { name: "Listen" });
-  await expect(listen.getByText("Audio guide, stop 781")).toBeVisible();
-  await expect(listen.locator("audio")).toHaveAttribute(
+  await expect(listen.getByText("A Sunday on La Grande Jatte").first()).toBeVisible();
+  await expect(listen.locator("audio").first()).toHaveAttribute(
     "src",
-    "https://www.artic.edu/assets/d9683532-66fd-67c3-5588-021527d115af",
+    /\/mobile\/audio\/fixture-\d+\.mp3$/,
   );
   await expect(
     page.getByRole("region", { name: "Further reading" }).getByRole("link", {

@@ -50,7 +50,7 @@ export function plainTitle(
 }
 
 /** Only https URLs on the museum's own site are linked or played. */
-function museumUrl(value: string | null | undefined): string | null {
+export function museumUrl(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   try {
     const url = new URL(value);

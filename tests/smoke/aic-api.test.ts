@@ -24,6 +24,7 @@ import {
   getWorkOfTheDayId,
 } from "@/lib/artic/museum";
 import { getCollectionOverview } from "@/lib/artic/overview";
+import { getArtworkAudio, getTour, getTourSummaries } from "@/lib/artic/tours";
 import { EMPTY_QUERY } from "@/lib/artic/search-url";
 
 describe("Art Institute of Chicago API (live)", () => {
@@ -144,5 +145,19 @@ describe("Art Institute of Chicago API (live)", () => {
     const galleries = await getGalleryOverview();
     expect(galleries.length).toBeGreaterThan(150);
     expect(galleries.some((g) => g.works > 0)).toBe(true);
+  });
+
+  it("reads audio tours with recordings and transcripts", async () => {
+    const tours = await getTourSummaries();
+    expect(tours.length).toBeGreaterThan(15);
+    const lookup = await getTour(2193);
+    expect(lookup.status).toBe("ok");
+    if (lookup.status !== "ok") return;
+    expect(lookup.tour.stops.length).toBeGreaterThan(20);
+    expect(lookup.tour.stops.every((stop) => stop.src || stop.zhSrc)).toBe(true);
+    expect(lookup.tour.stops.filter((stop) => stop.transcript).length).toBeGreaterThan(20);
+    const audio = await getArtworkAudio(27992);
+    expect(audio.recordings.length).toBeGreaterThan(0);
+    expect(audio.tours.length).toBeGreaterThan(0);
   });
 });

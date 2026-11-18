@@ -13,7 +13,14 @@ import { LanguageSwitch } from "./language-switch";
 function isActive(
   pathname: string,
   locale: Locale,
-  section: "home" | "exhibitions" | "galleries" | "map" | "collection" | "about",
+  section:
+    | "home"
+    | "exhibitions"
+    | "galleries"
+    | "tours"
+    | "map"
+    | "collection"
+    | "about",
 ): boolean {
   const rest = pathname.slice(`/${locale}`.length) || "/";
   if (section === "home")
@@ -54,6 +61,11 @@ export function SiteHeader() {
       section: "galleries",
       href: localizePath(locale, "/galleries"),
       label: dict.site.galleries,
+    },
+    {
+      section: "tours",
+      href: localizePath(locale, "/tours"),
+      label: dict.site.tours,
     },
     {
       section: "map",
@@ -114,7 +126,7 @@ export function SiteHeader() {
           <span>Gallery Atlas</span>
           <span
             className={cn(
-              "hidden font-sans text-[0.6875rem] tracking-[0.2em] uppercase sm:inline lg:hidden xl:inline",
+              "hidden font-sans text-[0.6875rem] tracking-[0.2em] uppercase sm:inline xl:hidden 2xl:inline",
               dark ? "text-gallery-muted" : "text-muted",
             )}
           >
@@ -122,8 +134,8 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-6 lg:gap-8">
-          <nav aria-label={dict.site.primaryNav} className="hidden lg:block">
+        <div className="flex items-center gap-6 xl:gap-8">
+          <nav aria-label={dict.site.primaryNav} className="hidden xl:block">
             <ul className="flex items-center gap-7 text-sm">
               {items.map((item) => {
                 const active = isActive(pathname, locale, item.section);
@@ -151,7 +163,7 @@ export function SiteHeader() {
           <LanguageSwitch overHero={dark} />
           <button
             type="button"
-            className="-mr-2 inline-flex size-11 items-center justify-center rounded-full lg:hidden"
+            className="-mr-2 inline-flex size-11 items-center justify-center rounded-full xl:hidden"
             aria-expanded={open}
             aria-controls={menuId}
             onClick={() => setOpenFor(open ? null : pathname)}
@@ -169,7 +181,7 @@ export function SiteHeader() {
         aria-label={dict.site.primaryNav}
         hidden={!open}
         className={cn(
-          "border-t lg:hidden",
+          "border-t xl:hidden",
           dark ? "border-white/10 bg-gallery" : "border-line bg-paper",
         )}
       >

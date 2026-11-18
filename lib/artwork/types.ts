@@ -123,3 +123,42 @@ export interface ReadingItem {
   title: string;
   url: string;
 }
+
+/** One recording of an audio tour, in English and sometimes in Mandarin. */
+export interface TourRecording {
+  /** mobile-sounds id. */
+  soundId: number;
+  title: string;
+  src: string | null;
+  zhSrc: string | null;
+  zhTitle: string | null;
+  transcript: TextRun[][] | null;
+}
+
+export interface TourStop extends TourRecording {
+  number: number;
+  /** The number visitors key in at the museum. */
+  code: string | null;
+  /** The work discussed, when it is public domain. */
+  artwork: Artwork | null;
+  /** Where the work hangs right now. */
+  gallery: { id: number | null; name: string } | null;
+}
+
+export interface TourSummary {
+  id: number;
+  title: string;
+  zhTitle: string | null;
+  description: TextRun[][] | null;
+  zhDescription: string | null;
+  minutes: number | null;
+  stopCount: number;
+  hasChinese: boolean;
+  cover: Artwork | null;
+}
+
+export interface Tour extends TourSummary {
+  intro: TextRun[][] | null;
+  introRecording: TourRecording | null;
+  stops: TourStop[];
+}

@@ -26,3 +26,6 @@ Thumbs.db
 
 # Cloudflare local secrets
 .dev.vars*
+
+# Chinese tour transcripts, © Art Institute of Chicago; generated at deploy
+public/tour-transcripts/

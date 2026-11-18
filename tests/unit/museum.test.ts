@@ -8,6 +8,7 @@ import {
   getSounds,
   getSuggestions,
   getWorkOfTheDayId,
+  museumUrl,
   plainTitle,
   toExhibition,
   toSound,
@@ -23,7 +24,10 @@ import { parseSharedExhibition } from "@/lib/collections/share";
 import { placeByKey } from "@/lib/geo/places";
 import { MAP_HEIGHT, MAP_WIDTH, project } from "@/lib/geo/projection";
 import { formatCount } from "@/lib/i18n/format";
-import { jsonResponse } from "../fixtures/aic";
+import { parseDescription } from "@/lib/artic/description";
+import { TOUR_INDEX } from "@/lib/artic/tour-index";
+import { getArtworkAudio, getTour } from "@/lib/artic/tours";
+import { jsonResponse, listResponse, rawArtwork } from "../fixtures/aic";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -345,5 +349,96 @@ describe("gallery overview", () => {
       { id: 7, name: "Gallery 240", number: "240", floor: "2", isClosed: false, works: 13 },
       { id: 8, name: "Gallery 125", number: "125", floor: "1", isClosed: true, works: 0 },
     ]);
+  });
+});
+
+describe("audio tours", () => {
+  const entry = TOUR_INDEX.tours.find((tour) => tour.id === 3906);
+
+  function stubTourApi() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const url = decodeURIComponent(String(input));
+        if (url.includes("/mobile-sounds"))
+          return jsonResponse({
+            data: (/ids=([\d,]+)/.exec(url)?.[1] ?? "").split(",").map((id) => ({
+              id: Number(id),
+              title: `T53_${id}_file`,
+              web_url: `https://www.artic.edu/mobile/audio/${id}.mp3`,
+              transcript: "<p>NARRATOR: One.</p><p>Two.</p>",
+            })),
+          });
+        if (url.includes("/tours/"))
+          return jsonResponse({
+            data: { id: 3906, title: " Porcelain ", description: "<p>About.</p>", intro: "<p>Hello.</p>" },
+          });
+        if (url.includes("is_on_view"))
+          return jsonResponse({
+            data: [{ id: 75903, is_on_view: true, gallery_id: 7, gallery_title: "Gallery 134" }],
+          });
+        return jsonResponse(listResponse([rawArtwork({ id: 75903 })]));
+      }),
+    );
+  }
+
+  it("indexes real stops in order, each with a recording", () => {
+    expect(TOUR_INDEX.tours.length).toBeGreaterThan(10);
+    for (const tour of TOUR_INDEX.tours) {
+      expect(tour.stops.length).toBeGreaterThan(0);
+      for (const stop of tour.stops) {
+        expect(stop.sound).toBeGreaterThan(0);
+        expect(stop.title).toBeTruthy();
+      }
+    }
+    for (const sound of Object.values(TOUR_INDEX.sounds))
+      expect(sound.zhSrc.startsWith("https://")).toBe(true);
+  });
+
+  it("joins a tour's recordings, works and rooms", async () => {
+    stubTourApi();
+    const lookup = await getTour(3906);
+    expect(lookup.status).toBe("ok");
+    if (lookup.status !== "ok") return;
+    const { tour } = lookup;
+    expect(tour.title).toBe("Porcelain");
+    expect(tour.stops).toHaveLength(entry?.stops.length ?? 0);
+    expect(tour.stops[0]).toMatchObject({
+      number: 1,
+      title: entry?.stops[0]?.title,
+      artwork: { id: 75903 },
+      gallery: { id: 7, name: "Gallery 134" },
+      transcript: [[{ text: "NARRATOR: One." }], [{ text: "Two." }]],
+    });
+    expect(tour.stops[1]?.artwork).toBeNull();
+    expect(tour.hasChinese).toBe(true);
+    expect(tour.introRecording?.zhSrc).toMatch(/^https:\/\/aic-mobile-tours/);
+  });
+
+  it("says not found for a tour outside the index, without asking the API", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(getTour(1)).resolves.toEqual({ status: "not_found" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never plays a recording hosted somewhere else", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          data: [{ id: 1, title: "x", web_url: "https://evil.example/a.mp3", transcript: null }],
+        }),
+      ),
+    );
+    const audio = await getArtworkAudio(999_999_999);
+    expect(audio).toEqual({ recordings: [], tours: [] });
+    expect(museumUrl("https://evil.example/a.mp3")).toBeNull();
+  });
+
+  it("keeps long transcripts whole", () => {
+    const html = Array.from({ length: 60 }, (_, i) => `<p>Line ${i}</p>`).join("");
+    expect(parseDescription(html)).toHaveLength(20);
+    expect(parseDescription(html, { maxParagraphs: 400 })).toHaveLength(60);
   });
 });

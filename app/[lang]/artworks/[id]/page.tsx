@@ -290,7 +290,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
           <OnView artwork={artwork} locale={locale} dict={dict} />
           <LookFurther artwork={artwork} locale={locale} dict={dict} />
           <Suspense fallback={null}>
-            <AudioGuide artwork={artwork} dict={dict} />
+            <AudioGuide artwork={artwork} locale={locale} dict={dict} />
           </Suspense>
         </div>
       </Container>

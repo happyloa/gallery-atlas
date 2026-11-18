@@ -106,6 +106,40 @@ export function Expand(props: IconProps) {
   );
 }
 
+export function Play(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 4.5v15l12-7.5z" fill="currentColor" />
+    </Icon>
+  );
+}
+
+export function Pause(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M8 5v14M16 5v14" strokeWidth={2.5} />
+    </Icon>
+  );
+}
+
+export function SkipBack(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M19 5v14L8 12z" fill="currentColor" />
+      <path d="M5 5v14" />
+    </Icon>
+  );
+}
+
+export function SkipForward(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 5v14l11-7z" fill="currentColor" />
+      <path d="M19 5v14" />
+    </Icon>
+  );
+}
+
 export function Plus(props: IconProps) {
   return (
     <Icon {...props}>
