@@ -97,3 +97,44 @@ export function X(props: IconProps) {
     </Icon>
   );
 }
+
+export function Expand(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+    </Icon>
+  );
+}
+
+export function Plus(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  );
+}
+
+export function Minus(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12h14" />
+    </Icon>
+  );
+}
+
+export function ArrowUpRight(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 17L17 7M8 7h9v9" />
+    </Icon>
+  );
+}
+
+/** Bookmark; `filled` marks a saved work. */
+export function Bookmark({ filled = false, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <Icon {...props}>
+      <path d="M6.5 3.5h11v17l-5.5-4-5.5 4z" fill={filled ? "currentColor" : "none"} />
+    </Icon>
+  );
+}

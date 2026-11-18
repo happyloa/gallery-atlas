@@ -34,3 +34,19 @@ export interface Artwork {
   sourceUrl: string;
   isPublicDomain: true;
 }
+
+/** A run of description text; `italic` marks titles and foreign words (<em> upstream). */
+export interface TextRun {
+  text: string;
+  italic: boolean;
+}
+
+/** What the detail page shows beyond a card. */
+export interface ArtworkDetail extends Artwork {
+  /** Artist with nationality and dates, e.g. "Georges Seurat (French, 1859–1891)". May hold line breaks. */
+  artistDisplay: string | null;
+  /** The museum's description as plain paragraphs (CC BY 4.0; credit it wherever shown). */
+  description: TextRun[][] | null;
+  /** The largest image the museum allows for public-domain works (1686px wide). */
+  zoomSrc: string | null;
+}

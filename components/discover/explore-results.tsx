@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArtworkCard } from "@/components/artwork/artwork-card";
+import { FavoriteButton } from "@/components/collections/favorite-button";
 import { buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { searchArtworks } from "@/lib/artic/artworks";
@@ -179,7 +180,11 @@ export async function ExploreResults({
       <ul className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {result.artworks.map((artwork) => (
           <li key={artwork.id}>
-            <ArtworkCard artwork={artwork} locale={locale} />
+            <ArtworkCard
+              artwork={artwork}
+              locale={locale}
+              action={<FavoriteButton artworkId={artwork.id} title={artwork.title} />}
+            />
           </li>
         ))}
       </ul>

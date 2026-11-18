@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import {
+  ARTWORK_DETAIL_FIELDS,
   ARTWORK_FIELDS,
   ARTWORK_TYPES,
   MAX_PAGE,
@@ -148,8 +149,8 @@ export function searchPath(query: SearchQuery): string {
   return `/artworks/search?params=${encodeURIComponent(JSON.stringify(buildSearchRequest(query)))}`;
 }
 
-export function artworkPath(id: number): string {
-  return `/artworks/${id}?fields=${ARTWORK_FIELDS.join(",")}`;
+export function artworkPath(id: number, detail = false): string {
+  return `/artworks/${id}?fields=${(detail ? ARTWORK_DETAIL_FIELDS : ARTWORK_FIELDS).join(",")}`;
 }
 
 export function artworksByIdsPath(ids: readonly number[]): string {

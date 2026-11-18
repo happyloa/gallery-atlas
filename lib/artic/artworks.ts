@@ -2,7 +2,7 @@
  * Server-side reads used by pages and route handlers. Each returns domain types only,
  * already filtered to displayable public-domain works.
  */
-import type { Artwork } from "@/lib/artwork/types";
+import type { Artwork, ArtworkDetail } from "@/lib/artwork/types";
 import { aicGet, AicError, isAicError } from "./client";
 import type { AicRequestOptions } from "./client";
 import {
@@ -13,7 +13,7 @@ import {
   REVALIDATE_SEARCH,
 } from "./config";
 import { resolveIiifBase } from "./images";
-import { toArtwork, toArtworks } from "./mapper";
+import { toArtwork, toArtworkDetail, toArtworks } from "./mapper";
 import { artworkPath, artworksByIdsPath, searchPath } from "./queries";
 import type { SearchQuery } from "./queries";
 import {
@@ -140,4 +140,24 @@ export async function getArtworksByIds(
     else unavailable.push(id);
   }
   return { artworks, unavailable };
+}
+
+export type ArtworkDetailLookup =
+  | { status: "ok"; artwork: ArtworkDetail }
+  | { status: "not_found" }
+  | { status: "restricted" };
+
+/** One work with everything the detail page shows, including the description. */
+export async function getArtworkDetail(id: number, options: RequestOptions = {}): Promise<ArtworkDetailLookup> {
+  let json: unknown;
+  try {
+    json = await aicGet(artworkPath(id, true), { ...options, revalidate: REVALIDATE_ARTWORK });
+  } catch (error) {
+    if (isAicError(error) && error.code === "not_found") return { status: "not_found" };
+    throw error;
+  }
+  const parsed = detailResponseSchema.safeParse(json);
+  if (!parsed.success) throw invalid("artwork");
+  const artwork = toArtworkDetail(parsed.data.data, resolveIiifBase(parsed.data.config?.iiif_url));
+  return artwork ? { status: "ok", artwork } : { status: "restricted" };
 }

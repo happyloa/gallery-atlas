@@ -1,20 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { Menu, X } from "@/components/ui/icons";
-import {
-  LOCALE_COOKIE,
-  LOCALE_TAGS,
-  localizePath,
-  switchLocalePath,
-} from "@/lib/i18n/config";
+import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
-
-const ONE_YEAR = 60 * 60 * 24 * 365;
+import { LanguageSwitch } from "./language-switch";
 
 function isActive(
   pathname: string,
@@ -29,7 +23,6 @@ function isActive(
 export function SiteHeader() {
   const { locale, dict } = useI18n();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const menuId = useId();
   const [openFor, setOpenFor] = useState<string | null>(null);
   // The menu belongs to the page it was opened on, so navigating closes it.
@@ -37,12 +30,6 @@ export function SiteHeader() {
   // The homepage hero is a dark gallery room, so the header floats over it in light type.
   const overHero = pathname === `/${locale}`;
 
-  const otherLocale: Locale = locale === "en" ? "zh-tw" : "en";
-  const query = searchParams.toString();
-  const switchHref = `${switchLocalePath(pathname, otherLocale)}${query ? `?${query}` : ""}`;
-  const rememberLocale = () => {
-    document.cookie = `${LOCALE_COOKIE}=${otherLocale}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
-  };
 
   const items = [
     {
@@ -71,23 +58,6 @@ export function SiteHeader() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const languageLink = (
-    <Link
-      href={switchHref}
-      onClick={rememberLocale}
-      hrefLang={LOCALE_TAGS[otherLocale]}
-      lang={LOCALE_TAGS[otherLocale]}
-      aria-label={dict.site.switchLanguageLabel}
-      className={cn(
-        "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery",
-        overHero
-          ? "border-gallery-text/35 hover:border-gallery-text"
-          : "border-ink/25 hover:border-ink",
-      )}
-    >
-      {dict.site.switchLanguage}
-    </Link>
-  );
 
   return (
     <header
@@ -147,7 +117,7 @@ export function SiteHeader() {
               })}
             </ul>
           </nav>
-          {languageLink}
+          <LanguageSwitch overHero={overHero} />
           <button
             type="button"
             className="-mr-2 inline-flex size-11 items-center justify-center rounded-full md:hidden"

@@ -4,7 +4,7 @@
 
 > An independent, thoughtfully designed space to discover, appreciate, and curate public-domain art.
 
-網站：尚未部署（預計部署到 Cloudflare Workers）
+網站：尚未部署（預計部署到 Cloudflare Workers）。介面有英文與繁體中文。
 
 技術：vinext（在 Vite 上執行的 Next.js App Router API）、React 19、TypeScript（strict）、Tailwind CSS v4、three.js，部署在 Cloudflare Workers。
 
@@ -26,9 +26,12 @@ npm run deploy       # 部署到 Cloudflare Workers
 ```bash
 npm run lint
 npm run typecheck
-npm test             # 單元與整合測試，上游 API 全部 mock
+npm test             # 單元、整合與元件測試，上游 API 全部 mock
 npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
+npm run test:e2e     # Playwright，用 fixture 模式啟動 dev server
 ```
+
+E2E 會自己用 `AIC_FIXTURES=1 vite dev`（port 5174）啟動伺服器，館方 API 改由 `lib/artic/dev-fixtures.ts` 的本機資料回應，IIIF 圖片在瀏覽器端攔截，所以結果不受館方伺服器影響。vinext 同一個專案只允許一個 dev server，跑 E2E 前要先停掉 `npm run dev`。fixture 模式只在 `vite dev` 時編譯進去，`vite build` 的產物裡這個開關固定為關閉。
 
 環境變數見 `.env.example`。`AIC_CONTACT_EMAIL` 只在伺服器端使用，會放進送給館方 API 的 `AIC-User-Agent` 標頭。本機開發可以不填，正式上線要填一個有效的公開聯絡信箱。
 
@@ -47,7 +50,7 @@ npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
 | Phase 0 | 專案初始化、lint、型別檢查、建置       | 完成   |
 | Phase 1 | 版面、設計 token、共用元件、About      | 完成   |
 | Phase 2 | 館方 API 串接、搜尋、篩選、分頁        | 完成   |
-| Phase 3 | 作品詳情、收藏                         | 未開始 |
+| Phase 3 | 中英雙語、作品詳情、收藏、E2E          | 完成   |
 | Phase 4 | 自訂策展清單                           | 未開始 |
 | Phase 5 | 無障礙、SEO、README、GitHub Actions CI | 未開始 |
 | Phase 6 | 部署到 Cloudflare Workers、正式站驗證  | 未開始 |
@@ -62,7 +65,23 @@ npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
 - three.js 與展廳程式在獨立的 chunk（gzip 約 141 KB），進到頁面後才載入，不在首屏 JS 裡。
 - 圖示是自己畫的 inline SVG（`components/ui/icons.tsx`），沒有用 lucide-react。在 Workers 上 lucide-react 會被打包成循環依賴的 server chunk，執行時 React 還沒載入，每一頁都回 500。
 - 次要文字的灰色從規格的 `#77736E` 改成 `#6B6762`：原本在紙色背景上對比只有 4.2:1，改後 5.0:1，符合 WCAG AA。
-- 字型：標題 Newsreader，內文 Instrument Sans。
+- 字型：標題 Newsreader，內文 Instrument Sans，中文 Noto Serif TC。build 時自行託管，中文字型切成 unicode-range 小檔，頁面只下載用到的字。
+- 沒有全站的 `loading.tsx`：它會在每頁外面包一層 Suspense，頁面在 `notFound()` 之前就以 200 送出外框，不存在的作品就拿不到 404。首頁的搜尋結果有自己的 Suspense 與骨架畫面。
+
+### 中英雙語（`lib/i18n/`）
+
+- 網址是 `/en/...` 與 `/zh-tw/...`。`proxy.ts` 把沒有語言前綴的網址導向使用者選過的語言（cookie），沒選過就看瀏覽器的 `Accept-Language`，再沒有就英文。
+- 介面文字放在純字串字典（`{佔位符}`），server 與 client 元件共用；測試會檢查兩種語言的鍵與佔位符一致。
+- 館方作品資料只有英文，標題、作者、年代、媒材、說明維持原文並標上 `lang="en"`，搜尋也要用英文關鍵字。中文版的 About 與搜尋提示有寫明。
+- 導覽列的語言切換會保留目前頁面與搜尋條件。
+
+### 作品詳情與收藏
+
+- `/[lang]/artworks/[id]`：大圖（843px，srcset 到 1200px）、作品資料、館方連結、Open Graph。不存在或格式錯誤的 id 回 404；非公有領域或沒有圖片的作品顯示說明與館方連結，不顯示圖片。
+- 作品說明（CC BY 4.0）在伺服器端把館方的 HTML 拆成段落與斜體片段，用一般 React 元素輸出，不用 `dangerouslySetInnerHTML`，並標示出處。
+- 完整圖片用原生 `<dialog>` 的 modal 模式：焦點限制在對話框內、Escape 關閉、關閉後焦點回到按鈕。最大只到館方對公有領域作品開放的 1686px。
+- 收藏存在 localStorage（`gallery-atlas:collection`），有版本號並用 Zod 逐筆驗證：損毀的 JSON 重設、舊版的純 id 陣列自動升級、重複與無效的項目移除、上限 500 件。讀取用 `useSyncExternalStore`，伺服器與 hydration 時一律視為空收藏，所以不會有 hydration 不一致；`storage` event 讓其他分頁同步。
+- 「我的收藏」頁把收藏的 id 交給 `/api/artworks?ids=` 重新檢查，館方下架或不再是公有領域的作品會列為無法顯示，並提供一鍵移除。
 
 ### 館方 API（`lib/artic/`）
 
@@ -87,4 +106,6 @@ npm run test:smoke   # 打真實館方 API 的 smoke test，需要網路
 - npm 擋下了 `workerd` 的 postinstall script，目前本機預覽仍可正常執行。
 - 館方 IIIF 圖片伺服器會對自動化環境回 Cloudflare challenge（403），所以開發時看不到真實作品圖，也還沒確認圖片有沒有回 CORS 標頭（3D 展廳的貼圖需要）。圖片載不到時，3D 畫框裡是空白的打底畫布，卡片顯示 Image unavailable。需要在一般瀏覽器裡再確認。
 - 3D 展廳的效能只量過每幀成本（AMD Radeon 890M 內顯約 2 ms），沒有在實體手機上量過 fps。
+- 收藏的 Zod 驗證讓瀏覽器端多了約 24 KB（gzip）的 JS。之後評估改用 `zod/mini`。
+- 每頁會把整份介面字典（約 5 KB）序列化給 client 元件使用，目前沒有按頁拆分。
 - 搜尋結果頁的 title 是依關鍵字動態產生的。一般瀏覽器和 Googlebot 會在 body 裡收到串流的 metadata，Twitterbot、facebookexternalhit 這類不執行 JS 的爬蟲則在 `<head>` 收到。這是 Next.js 的 streaming metadata 行為，vinext 照做。

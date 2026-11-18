@@ -39,6 +39,9 @@ export const ARTWORK_FIELDS = [
   "credit_line",
 ] as const;
 
+/** Detail pages also need the (CC BY 4.0) description. */
+export const ARTWORK_DETAIL_FIELDS = [...ARTWORK_FIELDS, "description"] as const;
+
 /**
  * Type filters offered in Explore. Ids are AIC `artwork_type_id`s; every one of these had
  * well over 1,000 public-domain works with images when checked (2026-11-18), so a filter

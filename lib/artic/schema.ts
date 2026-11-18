@@ -30,6 +30,7 @@ export const rawArtworkSchema = z.object({
   is_public_domain: z.boolean().nullish(),
   thumbnail: rawThumbnailSchema,
   credit_line: text,
+  description: text,
 });
 
 export type RawArtwork = z.infer<typeof rawArtworkSchema>;

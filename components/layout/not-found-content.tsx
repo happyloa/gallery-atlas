@@ -24,12 +24,3 @@ export function NotFoundContent() {
     </EmptyState>
   );
 }
-
-export function LoadingLabel() {
-  const { dict } = useI18n();
-  return (
-    <p className="sr-only" role="status">
-      {dict.explore.loading}
-    </p>
-  );
-}

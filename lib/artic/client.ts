@@ -4,6 +4,7 @@
  * failure into an `AicError` with a code the UI can act on.
  */
 import { AIC_API_BASE, REQUEST_TIMEOUT_MS } from "./config";
+import { fixtureResponse, isFixtureMode, isFixtureNotFound } from "./dev-fixtures";
 
 export type AicErrorCode =
   | "not_found"
@@ -156,6 +157,16 @@ export async function aicGet(
       "bad_request",
       "Refusing to request an unexpected path.",
     );
+  }
+  // End-to-end tests and offline development: answer from local fixtures (never in production).
+  if (!options.fetchImpl && isFixtureMode()) {
+    try {
+      return fixtureResponse(path);
+    } catch (error) {
+      if (isFixtureNotFound(error))
+        throw new AicError("not_found", "No such fixture record.", 404);
+      throw error;
+    }
   }
   const url = `${AIC_API_BASE}${path}`;
   const {

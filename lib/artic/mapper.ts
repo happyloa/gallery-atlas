@@ -3,14 +3,16 @@
  * server: a work becomes displayable only when the museum marks it public domain AND it
  * has a valid image id AND the IIIF base checks out. Everything else maps to null.
  */
-import type { Artwork } from "@/lib/artwork/types";
+import type { Artwork, ArtworkDetail } from "@/lib/artwork/types";
 import { museumArtworkUrl } from "./config";
 import {
   aspectRatioFrom,
   buildArtworkImage,
+  iiifUrl,
   isValidImageId,
   safePlaceholder,
 } from "./images";
+import { parseDescription } from "./description";
 import { rawArtworkSchema } from "./schema";
 
 const MAX_TEXT_LENGTH = 600;
@@ -89,4 +91,30 @@ export function toArtworks(
     artworks.push(artwork);
   }
   return artworks;
+}
+
+/** Like cleanText, but keeps single line breaks (artist_display puts dates on a second line). */
+function cleanMultiline(value: string | null | undefined, max = 400): string | null {
+  if (typeof value !== "string") return null;
+  const lines = value
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+  const joined = lines.join("\n");
+  return joined.length > max ? `${joined.slice(0, max - 1).trimEnd()}…` : joined;
+}
+
+/** Detail view of a displayable work, or null under the same rule as toArtwork. */
+export function toArtworkDetail(input: unknown, iiifBase: string | null): ArtworkDetail | null {
+  const artwork = toArtwork(input, iiifBase);
+  if (!artwork || !iiifBase) return null;
+  const raw = rawArtworkSchema.parse(input);
+  return {
+    ...artwork,
+    artistDisplay: cleanMultiline(raw.artist_display),
+    description: parseDescription(raw.description),
+    // toArtwork already checked public-domain status and the image id.
+    zoomSrc: iiifUrl(iiifBase, raw.image_id as string, 1686, true),
+  };
 }

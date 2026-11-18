@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import type { Locale } from "./config";
 import type { Dictionary } from "./dictionaries";
@@ -18,6 +18,11 @@ export function I18nProvider({
   dict,
   children,
 }: I18nValue & { children: ReactNode }) {
+  useEffect(() => {
+    // Marks the page as interactive. End-to-end tests wait for this before typing or clicking,
+    // so they never act on server HTML that React has not taken over yet.
+    document.documentElement.dataset.hydrated = "true";
+  }, []);
   return (
     <I18nContext.Provider value={{ locale, dict }}>
       {children}

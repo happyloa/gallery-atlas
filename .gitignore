@@ -23,3 +23,6 @@ next-env.d.ts
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Cloudflare local secrets
+.dev.vars*
