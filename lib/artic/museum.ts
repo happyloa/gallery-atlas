@@ -152,18 +152,115 @@ export async function getGallery(
     throw error;
   }
   const raw = rawGallery.safeParse(detail.parse(json).data);
-  const name = raw.success ? plainTitle(raw.data.title, 120) : null;
-  if (!raw.success || !name) return { status: "not_found" };
+  const gallery = raw.success ? toGallery(raw.data) : null;
+  return gallery ? { status: "ok", gallery } : { status: "not_found" };
+}
+
+/** A gallery in the overview, with how many public-domain works hang there now. */
+export interface GalleryListing extends Gallery {
+  works: number;
+}
+
+const GALLERY_FIELDS = "id,title,number,floor,is_closed";
+
+function toGallery(raw: z.infer<typeof rawGallery>): Gallery | null {
+  const name = plainTitle(raw.title, 120);
+  if (!name) return null;
   return {
-    status: "ok",
-    gallery: {
-      id: raw.data.id,
-      name,
-      number: plainTitle(raw.data.number, 20),
-      floor: plainTitle(raw.data.floor, 20),
-      isClosed: raw.data.is_closed === true,
-    },
+    id: raw.id,
+    name,
+    number: plainTitle(raw.number, 20),
+    floor: plainTitle(raw.floor, 20),
+    isClosed: raw.is_closed === true,
   };
+}
+
+const galleryCounts = z.object({
+  aggregations: z.object({
+    galleries: z.object({
+      buckets: z.array(
+        z.object({ key: z.number(), doc_count: z.number().int() }),
+      ),
+    }),
+  }),
+});
+
+/**
+ * Every gallery in the building (179 when checked), with its count of public-domain works
+ * on view. Two pages of galleries and one aggregation; the list is cached for a day and
+ * the counts for an hour, since works rotate.
+ */
+export async function getGalleryOverview(): Promise<GalleryListing[]> {
+  const page = (n: number) =>
+    aicGet(`/galleries?limit=100&page=${n}&fields=${GALLERY_FIELDS}`, {
+      revalidate: REVALIDATE_REFERENCE,
+    });
+  const countsParams = {
+    query: {
+      bool: { filter: [...DISPLAYABLE, { term: { is_on_view: true } }] },
+    },
+    limit: 0,
+    aggs: { galleries: { terms: { field: "gallery_id", size: 300 } } },
+  };
+  const [first, second, counts] = await Promise.all([
+    page(1),
+    page(2),
+    aicGet(
+      `/artworks/search?params=${encodeURIComponent(JSON.stringify(countsParams))}`,
+      { revalidate: REVALIDATE_ARTWORK },
+    ),
+  ]);
+  const works = new Map(
+    (
+      galleryCounts.safeParse(counts).data?.aggregations.galleries.buckets ?? []
+    ).map((b) => [b.key, b.doc_count]),
+  );
+  const seen = new Set<number>();
+  const galleries: GalleryListing[] = [];
+  for (const json of [first, second]) {
+    for (const raw of list(rawGallery).parse(json).items) {
+      const gallery = toGallery(raw);
+      if (!gallery || seen.has(gallery.id)) continue;
+      seen.add(gallery.id);
+      galleries.push({ ...gallery, works: works.get(gallery.id) ?? 0 });
+    }
+  }
+  return galleries;
+}
+
+/** Floors in building order; anything unexpected goes last. */
+export const FLOORS = ["LL", "1", "2", "3"] as const;
+
+/** Groups galleries by floor, numbered galleries in numeric order, named ones after. */
+export function galleriesByFloor(
+  galleries: readonly GalleryListing[],
+): { floor: string | null; galleries: GalleryListing[] }[] {
+  const groups = new Map<string | null, GalleryListing[]>();
+  for (const gallery of galleries) {
+    const floor =
+      gallery.floor && FLOORS.includes(gallery.floor as (typeof FLOORS)[number])
+        ? gallery.floor
+        : null;
+    groups.set(floor, [...(groups.get(floor) ?? []), gallery]);
+  }
+  const order = (a: GalleryListing, b: GalleryListing) => {
+    const na = a.number
+      ? Number.parseInt(a.number, 10)
+      : Number.POSITIVE_INFINITY;
+    const nb = b.number
+      ? Number.parseInt(b.number, 10)
+      : Number.POSITIVE_INFINITY;
+    if (na !== nb) return na - nb;
+    return (a.number ?? a.name).localeCompare(b.number ?? b.name, "en", {
+      numeric: true,
+    });
+  };
+  return [...FLOORS, null]
+    .filter((floor) => groups.has(floor))
+    .map((floor) => ({
+      floor,
+      galleries: [...(groups.get(floor) ?? [])].sort(order),
+    }));
 }
 
 /* Museum exhibitions ----------------------------------------------------------------- */
@@ -363,7 +460,10 @@ export async function getSuggestions(prefix: string): Promise<string[]> {
 /* Random and daily works ------------------------------------------------------------- */
 
 const idList = z.object({
-  pagination: z.object({ total: z.number().int().nonnegative() }).partial().nullish(),
+  pagination: z
+    .object({ total: z.number().int().nonnegative() })
+    .partial()
+    .nullish(),
   data: z.array(z.object({ id: z.number().int().positive() })),
 });
 
@@ -392,10 +492,17 @@ const RANDOM_POOL = [...DISPLAYABLE, { exists: { field: "description" } }];
 const NEAR = 20;
 
 /** Lowest and highest id in the pool, cached for a day. */
-async function idRange(pool: unknown[]): Promise<{ min: number; max: number } | null> {
+async function idRange(
+  pool: unknown[],
+): Promise<{ min: number; max: number } | null> {
   const edge = (order: "asc" | "desc") =>
     searchIds(
-      { query: { bool: { filter: pool } }, sort: [{ id: order }], fields: "id", limit: 1 },
+      {
+        query: { bool: { filter: pool } },
+        sort: [{ id: order }],
+        fields: "id",
+        limit: 1,
+      },
       REVALIDATE_REFERENCE,
     );
   const [low, high] = await Promise.all([edge("asc"), edge("desc")]);
@@ -414,7 +521,9 @@ export async function getRandomArtworkId(
   // Uncached: each cursor is new, and a cache entry per visit would only pile up.
   const after = await searchIds(
     {
-      query: { bool: { filter: [...RANDOM_POOL, { range: { id: { gte: cursor } } }] } },
+      query: {
+        bool: { filter: [...RANDOM_POOL, { range: { id: { gte: cursor } } }] },
+      },
       sort: [{ id: "asc" }],
       fields: "id",
       limit: NEAR,
@@ -425,7 +534,11 @@ export async function getRandomArtworkId(
     ? after
     : await searchIds(
         {
-          query: { bool: { filter: [...RANDOM_POOL, { range: { id: { lt: cursor } } }] } },
+          query: {
+            bool: {
+              filter: [...RANDOM_POOL, { range: { id: { lt: cursor } } }],
+            },
+          },
           sort: [{ id: "desc" }],
           fields: "id",
           limit: NEAR,

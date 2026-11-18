@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dayNumber,
   exhibitionStatus,
+  galleriesByFloor,
+  getGalleryOverview,
   getRandomArtworkId,
   getSounds,
   getSuggestions,
@@ -285,5 +287,63 @@ describe("map and wording helpers", () => {
   it("says one work, not one works", () => {
     expect(formatCount("1 work", "{count} works", 1)).toBe("1 work");
     expect(formatCount("1 work", "{count} works", 2, "2")).toBe("2 works");
+  });
+});
+
+describe("gallery overview", () => {
+  const room = (
+    id: number,
+    floor: string | null,
+    number: string | null,
+    name = `Gallery ${number}`,
+  ) => ({ id, name, number, floor, isClosed: false, works: 0 });
+
+  it("groups by floor in building order, numbers first and in numeric order", () => {
+    const groups = galleriesByFloor([
+      room(1, "2", "240"),
+      room(2, "1", "124B"),
+      room(3, "1", "125"),
+      room(4, "1", "124"),
+      room(5, "1", null, "Pritzker Garden"),
+      room(6, "LL", "10"),
+      room(7, null, null, "Somewhere"),
+    ]);
+    expect(groups.map((g) => g.floor)).toEqual(["LL", "1", "2", null]);
+    expect(groups[1]?.galleries.map((g) => g.name)).toEqual([
+      "Gallery 124",
+      "Gallery 124B",
+      "Gallery 125",
+      "Pritzker Garden",
+    ]);
+  });
+
+  it("joins the gallery list with on-view counts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("/artworks/search"))
+          return jsonResponse({
+            aggregations: {
+              galleries: { buckets: [{ key: 7, doc_count: 13 }] },
+            },
+          });
+        const page = String(url).includes("page=1") ? 1 : 2;
+        return jsonResponse({
+          pagination: { total: 2 },
+          data:
+            page === 1
+              ? [
+                  { id: 7, title: "Gallery 240", number: "240", floor: "2", is_closed: false },
+                  { id: 8, title: "Gallery 125", number: "125", floor: "1", is_closed: true },
+                ]
+              : [],
+        });
+      }),
+    );
+    const galleries = await getGalleryOverview();
+    expect(galleries).toEqual([
+      { id: 7, name: "Gallery 240", number: "240", floor: "2", isClosed: false, works: 13 },
+      { id: 8, name: "Gallery 125", number: "125", floor: "1", isClosed: true, works: 0 },
+    ]);
   });
 });

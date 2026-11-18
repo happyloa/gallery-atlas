@@ -13,15 +13,14 @@ import { LanguageSwitch } from "./language-switch";
 function isActive(
   pathname: string,
   locale: Locale,
-  section: "home" | "exhibitions" | "map" | "collection" | "about",
+  section: "home" | "exhibitions" | "galleries" | "map" | "collection" | "about",
 ): boolean {
   const rest = pathname.slice(`/${locale}`.length) || "/";
   if (section === "home")
     return (
       rest === "/" ||
       rest.startsWith("/artworks") ||
-      rest.startsWith("/artists") ||
-      rest.startsWith("/galleries")
+      rest.startsWith("/artists")
     );
   return rest === `/${section}` || rest.startsWith(`/${section}/`);
 }
@@ -50,6 +49,11 @@ export function SiteHeader() {
       section: "exhibitions",
       href: localizePath(locale, "/exhibitions"),
       label: dict.site.exhibitions,
+    },
+    {
+      section: "galleries",
+      href: localizePath(locale, "/galleries"),
+      label: dict.site.galleries,
     },
     {
       section: "map",
@@ -110,7 +114,7 @@ export function SiteHeader() {
           <span>Gallery Atlas</span>
           <span
             className={cn(
-              "hidden font-sans text-[0.6875rem] tracking-[0.2em] uppercase sm:inline",
+              "hidden font-sans text-[0.6875rem] tracking-[0.2em] uppercase sm:inline lg:hidden xl:inline",
               dark ? "text-gallery-muted" : "text-muted",
             )}
           >

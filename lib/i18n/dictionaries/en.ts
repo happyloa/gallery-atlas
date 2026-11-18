@@ -23,6 +23,7 @@ export const en = {
     switchLanguageLabel: "Switch to Traditional Chinese",
     opensInNewTab: " (opens in a new tab)",
     exhibitions: "Exhibitions",
+    galleries: "Galleries",
     map: "Map",
     random: "Random work",
   },
@@ -180,6 +181,20 @@ export const en = {
     worksHeading: "Public-domain works on view here",
     noWorks: "No public-domain works on view right now.",
     metaDescription: "Public-domain works on view in {gallery} at the Art Institute of Chicago.",
+  },
+  galleries: {
+    eyebrow: "Art Institute of Chicago",
+    heading: "Galleries",
+    floors: {
+      LL: "Lower level",
+      "1": "Floor 1",
+      "2": "Floor 2",
+      "3": "Floor 3",
+      other: "Elsewhere",
+    },
+    all: "All galleries",
+    metaDescription:
+      "Every gallery at the Art Institute of Chicago, with the public-domain works on view in each.",
   },
   museumExhibitions: {
     eyebrow: "At the museum",

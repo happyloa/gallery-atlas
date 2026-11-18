@@ -85,11 +85,11 @@ export default async function GalleryPage({
     <article className="pb-24 sm:pb-32">
       <Container className="pt-8 sm:pt-10">
         <Link
-          href={`${localizePath(locale, "/")}#explore`}
+          href={localizePath(locale, "/galleries")}
           className="inline-flex min-h-11 items-center gap-2 text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
         >
           <ArrowLeft className="size-4" />
-          {dict.detail.back}
+          {dict.galleries.all}
         </Link>
       </Container>
 

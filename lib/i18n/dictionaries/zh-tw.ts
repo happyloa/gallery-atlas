@@ -22,6 +22,7 @@ export const zhTw: Dictionary = {
     switchLanguageLabel: "切換為英文",
     opensInNewTab: "（在新分頁開啟）",
     exhibitions: "館方展覽",
+    galleries: "展廳",
     map: "地圖",
     random: "隨機一件",
   },
@@ -177,6 +178,19 @@ export const zhTw: Dictionary = {
     worksHeading: "正在這裡展出的公有領域作品",
     noWorks: "目前沒有展出公有領域作品。",
     metaDescription: "芝加哥藝術博物館 {gallery} 正在展出的公有領域作品。",
+  },
+  galleries: {
+    eyebrow: "芝加哥藝術博物館",
+    heading: "展廳",
+    floors: {
+      LL: "地下樓層",
+      "1": "1 樓",
+      "2": "2 樓",
+      "3": "3 樓",
+      other: "其他",
+    },
+    all: "所有展廳",
+    metaDescription: "芝加哥藝術博物館的所有展廳，以及每間正在展出的公有領域作品。",
   },
   museumExhibitions: {
     eyebrow: "館方展覽",

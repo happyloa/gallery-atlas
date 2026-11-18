@@ -157,6 +157,13 @@ const GALLERIES: Record<number, Record<string, unknown>> = {
     floor: "2",
     is_closed: false,
   },
+  25084: {
+    id: 25084,
+    title: "Gallery 125",
+    number: "125",
+    floor: "1",
+    is_closed: true,
+  },
 };
 
 const EXHIBITIONS = [
@@ -386,11 +393,11 @@ function aggregate(records: Raw[], aggs: Record<string, Clause>) {
       };
     } else if ("terms" in agg) {
       const { field, size } = agg.terms as { field: string; size?: number };
-      const counts = new Map<string, number>();
+      const counts = new Map<string | number, number>();
       for (const record of records) {
         const value = valueOf(record, field);
-        if (typeof value !== "string") continue;
-        const key = value.toLowerCase();
+        if (typeof value !== "string" && typeof value !== "number") continue;
+        const key = typeof value === "string" ? value.toLowerCase() : value;
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }
       result[name] = {
@@ -511,6 +518,16 @@ export function fixtureResponse(path: string): unknown {
     const ids = (url.searchParams.get("ids") ?? "").split(",");
     return {
       data: SOUNDS.filter((sound) => ids.includes(sound.id)),
+      config: CONFIG,
+    };
+  }
+
+  if (url.pathname === "/galleries") {
+    const page = Number(url.searchParams.get("page") ?? 1);
+    const all = Object.values(GALLERIES);
+    return {
+      pagination: { total: all.length },
+      data: page === 1 ? all : [],
       config: CONFIG,
     };
   }

@@ -14,6 +14,7 @@ import {
 import {
   getFurtherReading,
   getGallery,
+  getGalleryOverview,
   getMuseumExhibition,
   getMuseumExhibitions,
   getPlaceCounts,
@@ -137,5 +138,11 @@ describe("Art Institute of Chicago API (live)", () => {
     expect(await getWorkOfTheDayId(new Date())).toBeGreaterThan(0);
     const places = await getPlaceCounts();
     expect(places?.get("france")).toBeGreaterThan(1000);
+  });
+
+  it("lists every gallery with its on-view counts", async () => {
+    const galleries = await getGalleryOverview();
+    expect(galleries.length).toBeGreaterThan(150);
+    expect(galleries.some((g) => g.works > 0)).toBe(true);
   });
 });

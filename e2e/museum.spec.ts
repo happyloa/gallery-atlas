@@ -167,3 +167,23 @@ test("a broken share link says so", async ({ page }) => {
     }),
   ).toBeVisible();
 });
+
+test("the gallery overview lists every room by floor", async ({ page }) => {
+  await gotoReady(page, "/en");
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Galleries" })
+    .click();
+  await expect(page).toHaveURL(/\/en\/galleries$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Galleries" })).toBeVisible();
+
+  const floor2 = page.getByRole("region", { name: "Floor 2" });
+  await expect(floor2.getByRole("link", { name: /Gallery 240\s*1 work/ })).toBeVisible();
+  const floor1 = page.getByRole("region", { name: "Floor 1" });
+  await expect(floor1.getByText("Closed at the moment")).toBeVisible();
+
+  await floor2.getByRole("link", { name: /Gallery 240/ }).click();
+  await expect(page).toHaveURL(/\/en\/galleries\/2147478672$/);
+  await page.getByRole("link", { name: "All galleries" }).click();
+  await expect(page).toHaveURL(/\/en\/galleries$/);
+});
