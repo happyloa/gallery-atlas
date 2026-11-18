@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+
+# env files (keep the example)
+.env*
+!.env.example
+
+# build output
+.next
+next-env.d.ts
+/dist/
+.vinext/
+.cloudflare/
+.wrangler/
+*.tsbuildinfo
+
+# test reports
+/coverage/
+/playwright-report/
+/test-results/
+/blob-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
