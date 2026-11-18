@@ -96,6 +96,50 @@ test("a tour plays stop after stop, and remembers where you were", async ({
   ).toBeVisible();
 });
 
+test("the gallery view follows the tour and opens full screen", async ({
+  page,
+}) => {
+  await serveAudio(page, 60);
+  await gotoReady(page, "/en/tours/2193");
+  const stage = page.getByRole("region", { name: "Gallery view" });
+  await expect(stage).toBeVisible();
+
+  await page.getByRole("button", { name: "Start the tour" }).click();
+  await expect(stage.getByText("Introduction")).toBeVisible();
+
+  const player = page.getByRole("region", { name: "Audio tours" });
+  const workStop = currentStop(page).getByRole("link", {
+    name: "View artwork",
+  });
+  // Walk on to the first stop that has a work to show.
+  await expect(async () => {
+    await player.getByRole("button", { name: "Next stop" }).click();
+    await expect(workStop).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 20_000 });
+  const href = await workStop.getAttribute("href");
+  await expect(
+    stage.getByRole("link", { name: "View artwork" }),
+  ).toHaveAttribute("href", href ?? "");
+
+  await stage.getByRole("button", { name: "Full screen" }).click();
+  await expect(stage).toHaveCSS("position", "fixed");
+  await expect(player.getByRole("button", { name: "Next stop" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(stage).not.toHaveCSS("position", "fixed");
+});
+
+test("a tour with no public-domain works has no gallery view", async ({
+  page,
+}) => {
+  await gotoReady(page, "/en/tours/5470");
+  await expect(
+    page.getByRole("button", { name: "Start the tour" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Gallery view" })).toHaveCount(
+    0,
+  );
+});
+
 test("the Chinese site plays Mandarin audio with a Traditional Chinese transcript", async ({
   page,
 }) => {

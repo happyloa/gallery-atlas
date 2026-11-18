@@ -6,12 +6,17 @@ import { Euler, PerspectiveCamera, Quaternion, Vector2, Vector3 } from "three";
 import { EYE_HEIGHT } from "./layout";
 import type { RoomLayout } from "./layout";
 import { clamp, DEG, easeInOut, easeOut } from "./math";
+import type { RoomFraming } from "./types";
 
 const LANDSCAPE_FOV = 48;
 const MIN_HORIZONTAL_HALF_FOV = 17 * DEG;
 const MAX_FOV = 68;
 const MIN_VIEW_DISTANCE = 3;
+/** On a tour the visitor steps up to the work, so small prints still fill the view. */
+const MIN_TOUR_DISTANCE = 1.1;
 const WALK_SECONDS = 1.2;
+/** Between stops the walk is unhurried: the next recording is already playing. */
+const TOUR_WALK_FACTOR = 1.6;
 const INTRO_SECONDS = 2.6;
 
 interface Pose {
@@ -46,7 +51,11 @@ export interface CameraRig {
   update(dt: number, motion: boolean): boolean;
 }
 
-export function createCameraRig(layout: RoomLayout): CameraRig {
+export function createCameraRig(
+  layout: RoomLayout,
+  framing: RoomFraming = "hero",
+): CameraRig {
+  const tour = framing === "tour";
   const camera = new PerspectiveCamera(LANDSCAPE_FOV, 1, 0.1, 60);
   camera.rotation.order = "YXZ";
   const { width: roomWidth, depth: roomDepth } = layout;
@@ -88,13 +97,14 @@ export function createCameraRig(layout: RoomLayout): CameraRig {
     const portrait = aspect < 1;
     // How much of the view the framed work may fill, and where it sits. On wide
     // screens the work is held right of centre: the headline sits bottom-left.
-    const fillV = portrait ? 0.42 : 0.56;
-    const fillH = portrait ? 0.84 : 0.46;
-    const shiftX = portrait ? 0 : 0.2;
-    const shiftY = portrait ? 0.3 : 0.2;
+    const fillV = tour ? 0.6 : portrait ? 0.42 : 0.56;
+    const fillH = tour ? 0.76 : portrait ? 0.84 : 0.46;
+    const shiftX = tour || portrait ? 0 : 0.2;
+    // On a tour the work sits just above centre, clear of the caption under it.
+    const shiftY = tour ? 0.14 : portrait ? 0.3 : 0.2;
     // Stand a little to the right of the work and look back along the wall: the work
     // stays near, and the left of the frame opens onto the rest of the room.
-    const oblique = (portrait ? 4 : 16) * DEG;
+    const oblique = (tour ? 5 : portrait ? 4 : 16) * DEG;
 
     const across = p.wall === "back" ? roomDepth : roomWidth;
     const distance = clamp(
@@ -102,7 +112,7 @@ export function createCameraRig(layout: RoomLayout): CameraRig {
         p.outerHeight / (2 * tanV * fillV),
         p.outerWidth / (2 * tanH * fillH),
       ) + pullBack,
-      MIN_VIEW_DISTANCE,
+      tour ? MIN_TOUR_DISTANCE : MIN_VIEW_DISTANCE,
       across - 1.1,
     );
     const marginX = roomWidth / 2 - 0.8;
@@ -195,7 +205,8 @@ export function createCameraRig(layout: RoomLayout): CameraRig {
       const travel = base.position.distanceTo(to.position);
       const turn = turnsCorner ? 0.25 : 0;
       startTransition(
-        clamp(WALK_SECONDS + (travel - 3) * 0.07 + turn, WALK_SECONDS, 1.9),
+        clamp(WALK_SECONDS + (travel - 3) * 0.07 + turn, WALK_SECONDS, 1.9) *
+          (tour ? TOUR_WALK_FACTOR : 1),
         easeInOut,
         0.022,
         reducedMotion,
@@ -247,7 +258,8 @@ export function createCameraRig(layout: RoomLayout): CameraRig {
       }
 
       // Compose the camera: base pose, then look-around, breathing and scroll.
-      const idle = motion ? 1 : 0;
+      // No idle breathing on a tour: a still camera lets the frame loop rest.
+      const idle = motion && !tour ? 1 : 0;
       const yaw =
         -pointer.x * 2.6 * DEG + idle * Math.sin(elapsed * 0.31) * 0.2 * DEG;
       const pitch =

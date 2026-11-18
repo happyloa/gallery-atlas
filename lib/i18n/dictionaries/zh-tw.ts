@@ -191,7 +191,8 @@ export const zhTw: Dictionary = {
       other: "其他",
     },
     all: "所有展廳",
-    metaDescription: "芝加哥藝術博物館的所有展廳，以及每間正在展出的公有領域作品。",
+    metaDescription:
+      "芝加哥藝術博物館的所有展廳，以及每間正在展出的公有領域作品。",
   },
   tours: {
     eyebrow: "芝加哥藝術博物館",
@@ -220,6 +221,10 @@ export const zhTw: Dictionary = {
     audioError: "這段音檔無法播放。",
     credit: "音檔與逐字稿 © 芝加哥藝術博物館。",
     onTours: "收錄於語音導覽",
+    stage: "展廳畫面",
+    room: "第 {current} 間展室，共 {total} 間",
+    enterFullScreen: "全螢幕",
+    exitFullScreen: "離開全螢幕",
     metaDescription: "芝加哥藝術博物館的語音導覽路線，附逐字稿。",
   },
   museumExhibitions: {

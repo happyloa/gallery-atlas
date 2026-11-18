@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import type { GalleryScene, RoomArtwork } from "./types";
+import type { GalleryScene, RoomArtwork, RoomFraming } from "./types";
 
-export type { RoomArtwork } from "./types";
+export type { RoomArtwork, RoomFraming } from "./types";
 
 export interface GalleryRoomProps {
-  /** 3–8 works. The room is rebuilt only when their content changes, not their identity. */
+  /** 1–8 works. The room is rebuilt only when their content changes, not their identity. */
   artworks: RoomArtwork[];
+  /** "hero" (the default) for the homepage, "tour" beside an audio tour. */
+  framing?: RoomFraming;
   /** Controlled: the work the camera stands in front of. */
   activeIndex: number;
   /** A painting was clicked or tapped in the canvas. */
@@ -63,6 +65,7 @@ function hasCapableWebGL(): boolean {
  */
 export function GalleryRoom({
   artworks,
+  framing = "hero",
   activeIndex,
   onActiveIndexChange,
   onReady,
@@ -167,6 +170,7 @@ export function GalleryRoom({
         try {
           scene = createGalleryScene(canvas, {
             artworks: stableArtworks,
+            framing,
             initialIndex: activeIndexRef.current,
             reducedMotion: reducedMotion.matches,
             onActiveChange: (index) => {
@@ -242,9 +246,11 @@ export function GalleryRoom({
           if (scrollQueued) {
             scrollQueued = false;
             // 0 while the top of the hero is at or below the top of the viewport,
-            // 1 once the whole hero has scrolled past it.
+            // 1 once the whole hero has scrolled past it. A tour's room stays lit.
             room.setScrollProgress(
-              rect.height > 0 ? -rect.top / rect.height : 0,
+              framing === "hero" && rect.height > 0
+                ? -rect.top / rect.height
+                : 0,
             );
           }
         };
@@ -303,7 +309,7 @@ export function GalleryRoom({
           ?.loseContext();
       }, 0);
     };
-  }, [artworksKey, stableArtworks]);
+  }, [artworksKey, framing, stableArtworks]);
 
   const visible = readyKey === artworksKey;
 

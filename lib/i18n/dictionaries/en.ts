@@ -181,7 +181,8 @@ export const en = {
     closed: "Closed at the moment",
     worksHeading: "Public-domain works on view here",
     noWorks: "No public-domain works on view right now.",
-    metaDescription: "Public-domain works on view in {gallery} at the Art Institute of Chicago.",
+    metaDescription:
+      "Public-domain works on view in {gallery} at the Art Institute of Chicago.",
   },
   galleries: {
     eyebrow: "Art Institute of Chicago",
@@ -224,7 +225,12 @@ export const en = {
     audioError: "This recording can’t be played.",
     credit: "Audio and transcripts © Art Institute of Chicago.",
     onTours: "On audio tours",
-    metaDescription: "Audio tours from the Art Institute of Chicago, with transcripts.",
+    stage: "Gallery view",
+    room: "Room {current} of {total}",
+    enterFullScreen: "Full screen",
+    exitFullScreen: "Exit full screen",
+    metaDescription:
+      "Audio tours from the Art Institute of Chicago, with transcripts.",
   },
   museumExhibitions: {
     eyebrow: "At the museum",
@@ -243,14 +249,16 @@ export const en = {
     worksCountOne: "1 work listed",
     viewAtMuseum: "View at the Art Institute of Chicago",
     textCredit: "Text: Art Institute of Chicago.",
-    metaDescription: "Exhibitions at the Art Institute of Chicago, with their public-domain works.",
+    metaDescription:
+      "Exhibitions at the Art Institute of Chicago, with their public-domain works.",
   },
   map: {
     eyebrow: "Places of origin",
     heading: "Where the works come from",
     listHeading: "All places",
     unavailable: "The counts couldn’t be loaded just now.",
-    metaDescription: "Public-domain works from the Art Institute of Chicago, by place of origin.",
+    metaDescription:
+      "Public-domain works from the Art Institute of Chicago, by place of origin.",
   },
   daily: {
     eyebrow: "Today’s work",
@@ -373,7 +381,8 @@ export const en = {
     countZero: "No works yet",
     countOne: "1 work",
     countOther: "{count} works",
-    limitExhibitions: "You can have up to {max} exhibitions. Delete one to make room.",
+    limitExhibitions:
+      "You can have up to {max} exhibitions. Delete one to make room.",
     limitItems: "An exhibition holds up to {max} works.",
     nameRequired: "Give the exhibition a name.",
     created: "Created “{title}”.",

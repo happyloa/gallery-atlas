@@ -17,7 +17,10 @@ import type { Tour, TourRecording, TourStop } from "@/lib/artwork/types";
 import { localizePath } from "@/lib/i18n/config";
 import { format } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
+import { planTourRooms } from "@/lib/tours/room-plan";
+import type { RoomPlace } from "@/lib/tours/room-plan";
 import { cn } from "@/lib/utils";
+import { TourStage } from "./tour-stage";
 import { Transcript } from "./transcript";
 
 type Language = "zh" | "en";
@@ -75,6 +78,12 @@ export function TourPlayer({ tour }: { tour: Tour }) {
     [tour],
   );
   const offersMandarin = locale === "zh-tw" && items.some((i) => i.zhSrc);
+  const plan = useMemo(
+    () => planTourRooms(items.map((item) => item.artwork)),
+    [items],
+  );
+  const hasRoom = plan.rooms.length > 0;
+  const [fullScreen, setFullScreen] = useState(false);
 
   const [language, setLanguage] = useState<Language>(
     offersMandarin ? "zh" : "en",
@@ -135,30 +144,49 @@ export function TourPlayer({ tour }: { tour: Tour }) {
     else audio.pause();
   }, [current, load, resumeIndex]);
 
+  /** Brings a stop into view in the list, clear of the stage above it on small screens. */
+  const reveal = useCallback(
+    (index: number) => {
+      const reduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      document.getElementById(`stop-${items[index]?.soundId}`)?.scrollIntoView({
+        block: "start",
+        behavior: reduced ? "auto" : "smooth",
+      });
+    },
+    [items],
+  );
+
   const step = useCallback(
     (delta: number) => {
       if (current === null) return;
       const next = current + delta;
-      if (next >= 0 && next < items.length) load(next);
+      if (next < 0 || next >= items.length) return;
+      load(next);
+      reveal(next);
     },
-    [current, items.length, load],
+    [current, items.length, load, reveal],
   );
 
   const ended = () => {
     if (current === null) return;
     if (current < items.length - 1) {
-      const next = current + 1;
-      load(next);
-      const reduced = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      document.getElementById(`stop-${items[next]?.soundId}`)?.scrollIntoView({
-        block: "center",
-        behavior: reduced ? "auto" : "smooth",
-      });
+      load(current + 1);
+      reveal(current + 1);
     } else {
       writeProgress(progressKey, null);
     }
+  };
+
+  /** A work clicked on the wall: go to the first stop about it. */
+  const pickWork = (place: RoomPlace) => {
+    const index = plan.places.findIndex(
+      (p) => p?.room === place.room && p.work === place.work,
+    );
+    if (index < 0) return;
+    load(index);
+    reveal(index);
   };
 
   const changeLanguage = (next: Language) => {
@@ -203,8 +231,13 @@ export function TourPlayer({ tour }: { tour: Tour }) {
       ? format(t.resume, { number: items[resumeIndex]?.number ?? resumeIndex })
       : t.start;
 
-  return (
-    <div className={cn(current !== null && "pb-40")}>
+  // Before the tour starts the stage shows where it will pick up.
+  const stageIndex = current ?? resumeIndex;
+  const stageItem = items[stageIndex];
+  const stagePlace = plan.anchors[stageIndex] ?? null;
+
+  const list = (
+    <div inert={fullScreen} className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         {current === null ? (
           <button type="button" onClick={toggle} className={buttonStyles()}>
@@ -246,7 +279,10 @@ export function TourPlayer({ tour }: { tour: Tour }) {
               id={`stop-${item.soundId}`}
               aria-current={isCurrent ? "true" : undefined}
               className={cn(
-                "grid scroll-mt-24 grid-cols-[2.75rem_5.5rem_minmax(0,1fr)] gap-x-3 gap-y-5 border-b border-line py-8 transition-colors duration-500 ease-gallery sm:grid-cols-[3rem_9rem_minmax(0,1fr)] sm:gap-x-8",
+                "grid grid-cols-[2.75rem_5.5rem_minmax(0,1fr)] gap-x-3 gap-y-5 border-b border-line py-8 transition-colors duration-500 ease-gallery sm:grid-cols-[3rem_9rem_minmax(0,1fr)] sm:gap-x-8",
+                hasRoom
+                  ? "scroll-mt-[calc(4rem+max(42svh,16rem)+1rem)] lg:scroll-mt-24 lg:grid-cols-[2.5rem_6rem_minmax(0,1fr)] lg:gap-x-5"
+                  : "scroll-mt-24",
                 isCurrent && "bg-paper-deep/70 sm:-mx-4 sm:px-4",
               )}
             >
@@ -352,6 +388,42 @@ export function TourPlayer({ tour }: { tour: Tour }) {
           );
         })}
       </ol>
+    </div>
+  );
+
+  return (
+    <div className={cn(current !== null && "pb-40")}>
+      {stageItem && stagePlace ? (
+        // A flex column on small screens: a sticky grid item could not leave its own row.
+        <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+          <TourStage
+            rooms={plan.rooms}
+            place={stagePlace}
+            showsWork={Boolean(stageItem.artwork)}
+            stop={{
+              label:
+                stageItem.number === undefined
+                  ? t.introduction
+                  : format(t.stop, { number: stageItem.number }),
+              title:
+                stageItem.number === undefined
+                  ? tourTitle(tour, locale)
+                  : titleOf(stageItem),
+              titleInEnglish:
+                stageItem.number === undefined
+                  ? locale === "zh-tw" && !tour.zhTitle
+                  : !isMandarin(stageItem, language) || !stageItem.zhTitle,
+            }}
+            started={current !== null}
+            fullScreen={fullScreen}
+            onFullScreenChange={setFullScreen}
+            onPickWork={pickWork}
+          />
+          {list}
+        </div>
+      ) : (
+        list
+      )}
 
       {/* One element for the whole tour; each stop's transcript is on the page. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -372,7 +444,10 @@ export function TourPlayer({ tour }: { tour: Tour }) {
       {active ? (
         <section
           aria-label={t.heading}
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-gallery text-gallery-text"
+          className={cn(
+            "fixed inset-x-0 bottom-0 border-t border-white/10 bg-gallery text-gallery-text",
+            fullScreen ? "z-[60]" : "z-30",
+          )}
         >
           <div className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-8 lg:px-12">
             <input

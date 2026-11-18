@@ -17,11 +17,19 @@ export interface RoomArtwork {
   dimensions: string | null;
 }
 
+/**
+ * How the camera treats the room. "hero" holds the work off-centre behind the homepage
+ * headline. "tour" stands close and centred, and draws only when something moves, because
+ * a tour can stay on screen for half an hour.
+ */
+export type RoomFraming = "hero" | "tour";
+
 export interface GallerySceneOptions {
-  /** 3–8 works. Extra works beyond 8 are ignored. */
+  /** 1–8 works. Extra works beyond 8 are ignored. */
   artworks: RoomArtwork[];
   initialIndex: number;
   reducedMotion: boolean;
+  framing?: RoomFraming;
   /** The user clicked or tapped a painting in the canvas. */
   onActiveChange?: (index: number) => void;
   /** The first frame has been drawn. */

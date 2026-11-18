@@ -95,8 +95,10 @@ export function createGalleryScene(
   const bakes = createBakeQueue(lighting);
   const shell = buildShell(kit, bakes, lighting);
   const works = hangWorks(kit, bakes, shell, artworks);
-  const rig = createCameraRig(layout);
+  const rig = createCameraRig(layout, options.framing);
   const { camera } = rig;
+  // A tour plays for a long time: draw only when something on screen has changed.
+  const drawOnDemand = options.framing === "tour";
   const { floor, floorMesh } = shell;
 
   // --- State ----------------------------------------------------------------------
@@ -199,7 +201,7 @@ export function createGalleryScene(
     if (rig.update(dt, motion)) dirty = true;
     if (updateWorks(works, dt, activeIndex, motion, rig.scroll)) dirty = true;
     renderer.toneMappingExposure = EXPOSURE * (1 - 0.45 * rig.scroll);
-    if (built && (dirty || motion)) {
+    if (built && (dirty || (motion && !drawOnDemand))) {
       draw();
       if (motion) governPixelRatio(dt);
     }
