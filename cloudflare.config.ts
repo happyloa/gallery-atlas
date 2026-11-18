@@ -6,6 +6,8 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-11-18",
     compatibilityFlags: ["nodejs_compat"],
+    // Records CPU time per request; the free plan allows 10 ms before Error 1102.
+    observability: { enabled: true, logs: { invocationLogs: true } },
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
