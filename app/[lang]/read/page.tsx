@@ -16,11 +16,12 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.read.heading,
     description: dict.read.metaDescription,
-    alternates: languageAlternates("/read"),
+    alternates: languageAlternates(locale, "/read"),
   };
 }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
   FilterChips,
@@ -31,14 +32,23 @@ type Params = Promise<{ lang: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
+  const query = await searchParams;
+  const type = stringParam(query, "type");
   return {
     title: dict.artistIndex.heading,
     description: dict.artistIndex.metaDescription,
-    alternates: languageAlternates("/artists"),
+    alternates: languageAlternates(locale, "/artists", {
+      q: keywordParam(query),
+      type: type && /^\d{1,3}$/.test(type) ? Number(type) : null,
+      page: pageParam(query) ?? 1,
+    }),
   };
 }
 
@@ -64,6 +74,8 @@ export default async function ArtistsPage({
   const query = await searchParams;
   const q = keywordParam(query);
   const page = pageParam(query);
+  // Past the last page the museum's search can show: no such page, and no request for it.
+  if (page === null) notFound();
   const rawType = stringParam(query, "type");
   const type = rawType && /^\d{1,3}$/.test(rawType) ? Number(rawType) : null;
 

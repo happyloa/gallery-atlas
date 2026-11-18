@@ -28,6 +28,7 @@ export function SiteHeader() {
   const { locale, dict } = useI18n();
   const pathname = usePathname();
   const menuId = useId();
+  const menuButton = useRef<HTMLButtonElement>(null);
   const [openFor, setOpenFor] = useState<string | null>(null);
   // The menu belongs to the page it was opened on, so navigating closes it.
   const open = openFor === pathname;
@@ -36,7 +37,6 @@ export function SiteHeader() {
   const scrolled = useScrolled();
   // Light type on the dark room until the page scrolls; then a frosted paper bar.
   const dark = overHero && !scrolled;
-
 
   const primary = [
     {
@@ -117,20 +117,41 @@ export function SiteHeader() {
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenFor(null);
+      if (event.key !== "Escape") return;
+      setOpenFor(null);
+      // The links are about to be hidden; focus goes back to the button that opened them.
+      menuButton.current?.focus();
+    };
+    // The menu is only shown below the xl breakpoint (80rem).
+    const wide = window.matchMedia("(min-width: 80rem)");
+    const onWide = () => {
+      if (wide.matches) setOpenFor(null);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    // Hold the page behind still (Lenis follows this too). The gutter keeps the width the
+    // scrollbar took, so nothing shifts sideways.
+    const root = document.documentElement;
+    const previous = {
+      overflow: root.style.overflow,
+      gutter: root.style.scrollbarGutter,
+    };
+    root.style.overflow = "hidden";
+    root.style.scrollbarGutter = "stable";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+      root.style.overflow = previous.overflow;
+      root.style.scrollbarGutter = previous.gutter;
+    };
   }, [open]);
-
 
   return (
     <header
+      data-tone={dark ? "dark" : undefined}
       className={cn(
         "top-0 z-40 w-full animate-fade-in transition-[background-color,color,border-color,backdrop-filter] duration-500 ease-gallery [animation-delay:calc(var(--intro-delay)+200ms)]",
-        overHero
-          ? "fixed inset-x-0"
-          : "sticky",
+        overHero ? "fixed inset-x-0" : "sticky",
         dark
           ? "border-b border-transparent text-gallery-text"
           : "border-b border-line bg-paper/85 text-ink backdrop-blur-md",
@@ -201,6 +222,7 @@ export function SiteHeader() {
           </Link>
           <LanguageSwitch overHero={dark} />
           <button
+            ref={menuButton}
             type="button"
             className="-mr-2 inline-flex size-11 items-center justify-center rounded-full xl:hidden"
             aria-expanded={open}
@@ -219,8 +241,12 @@ export function SiteHeader() {
         id={menuId}
         aria-label={dict.site.primaryNav}
         hidden={!open}
+        // Its own scrolling is native; Lenis leaves wheel events in here alone.
+        data-lenis-prevent=""
         className={cn(
-          "border-t xl:hidden",
+          // Never taller than the screen below the bar: on a short viewport the list scrolls
+          // instead of running off the bottom, where a fixed header could not follow.
+          "max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t sm:max-h-[calc(100dvh-5rem)] xl:hidden",
           dark ? "border-white/10 bg-gallery" : "border-line bg-paper",
         )}
       >
@@ -247,7 +273,7 @@ export function SiteHeader() {
                 aria-current={
                   isActive(pathname, locale, item.section) ? "page" : undefined
                 }
-                className="block py-2 text-base"
+                className="block py-2.5 text-base"
               >
                 {item.label}
               </Link>
@@ -272,12 +298,16 @@ function MoreMenu({
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const root = useRef<HTMLDivElement | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const active = items.some((item) => isCurrent(item.section));
 
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      // Focus may be on a link that is about to be hidden.
+      trigger.current?.focus();
     };
     const onPointer = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
@@ -293,6 +323,7 @@ function MoreMenu({
   return (
     <div ref={root} className="relative">
       <button
+        ref={trigger}
         type="button"
         aria-expanded={open}
         aria-controls={menuId}
@@ -314,6 +345,8 @@ function MoreMenu({
       <ul
         id={menuId}
         hidden={!open}
+        // A paper panel, even when the header around it is in its dark state.
+        data-tone="light"
         className="absolute top-full right-0 z-50 mt-3 w-44 border border-line bg-paper py-2 text-ink shadow-[0_18px_30px_-18px_rgb(34_33_31/0.45)]"
       >
         {items.map((item) => (

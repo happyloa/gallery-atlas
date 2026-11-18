@@ -32,11 +32,12 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.visit.heading,
     description: dict.visit.metaDescription,
-    alternates: languageAlternates("/visit"),
+    alternates: languageAlternates(locale, "/visit"),
   };
 }
 

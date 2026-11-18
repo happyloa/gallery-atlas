@@ -100,7 +100,12 @@ test("an artist page shows the biography and its credit", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Georges Seurat" }),
   ).toBeVisible();
   await expect(page.getByText(/Fixture biography for/)).toBeVisible();
-  await expect(page.getByText("介紹：芝加哥藝術博物館，CC BY 4.0。")).toBeVisible();
+  // The licence named in the credit links to its terms.
+  const credit = page.getByText("介紹：芝加哥藝術博物館，");
+  await expect(credit).toBeVisible();
+  await expect(
+    credit.getByRole("link", { name: /^CC BY 4\.0/ }),
+  ).toHaveAttribute("href", "https://creativecommons.org/licenses/by/4.0/");
   await expect(page.getByRole("link", { name: JATTE })).toBeVisible();
 
   const missing = await page.goto("/en/artists/999999");

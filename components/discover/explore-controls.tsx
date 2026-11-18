@@ -38,9 +38,13 @@ function clean(value: string): string {
 }
 
 const chip =
-  "inline-flex min-h-10 items-center rounded-full border px-4 text-sm transition-colors duration-200 ease-gallery";
-const smallChip =
-  "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery";
+  "inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors duration-200 ease-gallery";
+/** Drawn 36px tall; the ::after reaches 4px past it above and below, for a 44px target. */
+const tallTarget = "relative after:absolute after:inset-x-0 after:-inset-y-1";
+const smallChip = cn(
+  "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery",
+  tallTarget,
+);
 const chipState = (selected: boolean) =>
   selected
     ? "border-ink bg-ink text-paper"
@@ -110,8 +114,10 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
       for (const [key, filter] of new URLSearchParams(filterKey))
         params.append(key, filter);
       const search = params.toString();
+      // Replace, not push: searching as you type must not leave a history entry for every
+      // pause ("mo", "mone", "monet") between the visitor and the page they came from.
       startTransition(() =>
-        router.push(`/${locale}${search ? `?${search}` : ""}#explore`, {
+        router.replace(`/${locale}${search ? `?${search}` : ""}#explore`, {
           scroll: false,
         }),
       );
@@ -122,6 +128,8 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next = clean(value);
+    // Already showing this search (typing got there first): nothing to add to history.
+    if (next === query.q) return;
     setPushedQ(next);
     startTransition(() =>
       router.push(hrefWith({ q: next }), { scroll: false }),
@@ -193,8 +201,7 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
             autoComplete="off"
             enterKeyHint="search"
             list="explore-suggestions"
-            lang="en"
-            className="min-h-12 w-full border-0 border-b border-ink/30 bg-transparent pl-9 font-serif text-xl text-ink transition-colors duration-200 ease-gallery placeholder:text-muted/80 focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 sm:text-2xl"
+            className="min-h-12 w-full border-0 border-b border-ink/30 bg-transparent pl-9 font-serif text-xl text-ink transition-colors duration-200 ease-gallery placeholder:text-muted focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 sm:text-2xl"
           />
           <datalist id="explore-suggestions">
             {suggestions.map((suggestion) => (
@@ -251,7 +258,7 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
           </span>
           <ul
             aria-labelledby="era-filter-label"
-            className="flex flex-wrap gap-1.5"
+            className="flex flex-wrap gap-x-1.5 gap-y-2"
           >
             {eras.map((era) => (
               <li key={era.slug ?? "any"}>
@@ -302,7 +309,7 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
                     aria-current={selected ? "true" : undefined}
                     title={dict.colors[color.slug]}
                     className={cn(
-                      "group flex size-10 items-center justify-center rounded-full transition-transform duration-200 ease-gallery hover:scale-110",
+                      "group flex size-11 items-center justify-center rounded-full transition-transform duration-200 ease-gallery hover:scale-110",
                       selected &&
                         "ring-2 ring-ink ring-offset-2 ring-offset-paper",
                     )}
@@ -331,7 +338,10 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
                     scroll={false}
                     prefetch={false}
                     aria-label={format(t.removeFilter, { label })}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full bg-accent/10 px-3 text-[0.8125rem] text-accent-deep transition-colors duration-200 ease-gallery hover:bg-accent/20"
+                    className={cn(
+                      "inline-flex min-h-9 items-center gap-2 rounded-full bg-accent/10 px-3 text-[0.8125rem] text-accent-deep transition-colors duration-200 ease-gallery hover:bg-accent/20",
+                      tallTarget,
+                    )}
                   >
                     <span lang={tag.lang}>{label}</span>
                     <X aria-hidden="true" className="size-3.5" />
@@ -364,7 +374,8 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
                     prefetch={false}
                     aria-current={query.sort === sort ? "true" : undefined}
                     className={cn(
-                      "py-1 underline-offset-4 hover:underline",
+                      // Padding for a 44px target; the margin gives the height back.
+                      "-my-2 py-3 underline-offset-4 hover:underline",
                       query.sort === sort ? "text-ink underline" : "text-muted",
                     )}
                   >
@@ -379,7 +390,7 @@ export function ExploreControls({ query }: { query: SearchQuery }) {
               href={searchHref(locale, {})}
               scroll={false}
               prefetch={false}
-              className="text-sm text-muted underline underline-offset-4 hover:text-ink"
+              className="-my-3 py-3 text-sm text-muted underline underline-offset-4 hover:text-ink"
             >
               {t.clearFilters}
             </Link>

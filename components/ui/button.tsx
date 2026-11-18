@@ -10,7 +10,8 @@ const base =
 
 const sizes: Record<ButtonSize, string> = {
   md: "min-h-12 px-6 text-sm",
-  sm: "min-h-10 px-4 text-[0.8125rem]",
+  // 44px, the smallest comfortable touch target.
+  sm: "min-h-11 px-4 text-[0.8125rem]",
 };
 
 /** `tone` is the background the button sits on: light paper or the dark gallery. */
@@ -46,6 +47,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   tone?: ButtonTone;
   size?: ButtonSize;
+  ref?: React.Ref<HTMLButtonElement>;
 }
 
 export function Button({

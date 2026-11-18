@@ -1,12 +1,13 @@
 /** The museum's programme: events, their dated occurrences, programmes and opening hours. */
 import { z } from "zod";
 import type { TextRun } from "@/lib/artwork/types";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import { aicGet } from "./client";
-import { REVALIDATE_REFERENCE, REVALIDATE_SEARCH } from "./config";
+import { REVALIDATE_LISTING, REVALIDATE_REFERENCE } from "./config";
 import { plainTitle } from "./museum";
 import {
   articUrl,
-  excerpt,
+  copyExcerpt,
   imgixUrl,
   intField,
   listField,
@@ -71,7 +72,7 @@ function toOccurrence(
     id: raw.id,
     eventId: raw.event_id,
     title,
-    summary: excerpt(parseCopy(raw.short_description)),
+    summary: copyExcerpt(raw.short_description),
     image: imgixUrl(raw.image_url, 640),
     start: raw.start_at,
     end:
@@ -97,7 +98,7 @@ async function eventIdsInProgram(
       fields: "id",
       limit: 100,
     },
-    REVALIDATE_SEARCH,
+    REVALIDATE_LISTING,
   );
   return result.items.map((item) => item.id);
 }
@@ -131,7 +132,7 @@ export async function getOccurrences({
       limit,
       page,
     },
-    REVALIDATE_SEARCH,
+    REVALIDATE_LISTING,
   );
   return {
     ...result,
@@ -172,7 +173,7 @@ export async function getPrograms(today: string): Promise<EventProgram[]> {
         limit: 0,
         aggs: { programs: { terms: { field: "program_ids", size: 60 } } },
       },
-      REVALIDATE_SEARCH,
+      REVALIDATE_LISTING,
     ),
   ]);
   const name = new Map(
@@ -182,9 +183,9 @@ export async function getPrograms(today: string): Promise<EventProgram[]> {
       100,
     ).items.map((raw) => [raw.id, plainTitle(raw.title, 80)]),
   );
-  const buckets =
-    programBuckets.safeParse(upcoming.aggregations.programs).data?.buckets ??
-    [];
+  const counted = programBuckets.safeParse(upcoming.aggregations.programs);
+  if (!counted.success) reportUpstreamFailure();
+  const buckets = counted.data?.buckets ?? [];
   return buckets.flatMap((bucket) => {
     const title = name.get(bucket.key);
     return title ? [{ id: bucket.key, title, count: bucket.doc_count }] : [];
@@ -245,29 +246,31 @@ export async function getEvent(
   id: number,
   today: string,
 ): Promise<MuseumEvent | null> {
-  const raw = await readRecord(
-    `/events/${id}?fields=${EVENT_FIELDS}`,
-    rawEvent,
-    REVALIDATE_SEARCH,
-  );
+  // The sessions are found by the event's id alone, so both are asked for at once.
+  const [raw, occurrences] = await Promise.all([
+    readRecord(
+      `/events/${id}?fields=${EVENT_FIELDS}`,
+      rawEvent,
+      REVALIDATE_LISTING,
+    ),
+    searchRecords(
+      "event-occurrences",
+      rawOccurrence,
+      {
+        filter: [
+          { term: { event_id: id } },
+          { range: { start_at: { gte: today } } },
+        ],
+        sort: [{ start_at: "asc" }],
+        fields: OCCURRENCE_FIELDS,
+        limit: 30,
+      },
+      REVALIDATE_LISTING,
+    ).catch(() => null),
+  ]);
   const title =
     plainTitle(raw?.title_display, 200) ?? plainTitle(raw?.title, 200);
   if (!raw || !title || raw.is_private === true) return null;
-
-  const occurrences = await searchRecords(
-    "event-occurrences",
-    rawOccurrence,
-    {
-      filter: [
-        { term: { event_id: id } },
-        { range: { start_at: { gte: today } } },
-      ],
-      sort: [{ start_at: "asc" }],
-      fields: OCCURRENCE_FIELDS,
-      limit: 30,
-    },
-    REVALIDATE_SEARCH,
-  ).catch(() => null);
 
   return {
     id,

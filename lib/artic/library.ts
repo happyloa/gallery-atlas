@@ -5,12 +5,13 @@
  * credit, so every detail page cites its source.
  */
 import { z } from "zod";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import { aicGet } from "./client";
-import { museumArticleUrl } from "./config";
+import { museumArticleUrl, REVALIDATE_REFERENCE } from "./config";
 import { plainTitle } from "./museum";
 import {
   articUrl,
-  excerpt,
+  copyExcerpt,
   intField,
   LIST_SIZE,
   listField,
@@ -185,7 +186,7 @@ export async function getLibraryList(
         {
           id: raw.id,
           title,
-          excerpt: config.withExcerpt ? excerpt(parseCopy(raw.copy)) : null,
+          excerpt: config.withExcerpt ? copyExcerpt(raw.copy) : null,
           context: plainTitle(raw.publication_title, 160),
         },
       ];
@@ -234,6 +235,8 @@ async function catalogueContents(
       valid.slice(start, start + CONTENT_CHUNK),
       linkRow,
       "id,title",
+      // A catalogue's contents are the same list on every read, and catalogues are few.
+      REVALIDATE_REFERENCE,
     );
     for (const row of rows) {
       const title = plainTitle(row.title, 200);
@@ -348,14 +351,18 @@ export async function getLibraryOverview(): Promise<LibraryOverview> {
     resources,
   };
   const [countsJson, pagesJson] = await Promise.all([
-    aicGet(paramsPath("/search", params), { revalidate: 86_400 }),
+    aicGet(paramsPath("/search", params), {
+      revalidate: REVALIDATE_REFERENCE,
+    }),
     aicGet("/static-pages?limit=20&fields=id,title,web_url", {
-      revalidate: 86_400,
+      revalidate: REVALIDATE_REFERENCE,
     }),
   ]);
-  const buckets =
-    kindCounts.safeParse(toRecordPage(countsJson, z.unknown(), 0).aggregations)
-      .data?.kinds.buckets ?? [];
+  const counted = kindCounts.safeParse(
+    toRecordPage(countsJson, z.unknown(), 0).aggregations,
+  );
+  if (!counted.success) reportUpstreamFailure();
+  const buckets = counted.data?.kinds.buckets ?? [];
   const counts: LibraryOverview["counts"] = {};
   for (const bucket of buckets) {
     const kind = KIND_OF_RESOURCE[bucket.key];

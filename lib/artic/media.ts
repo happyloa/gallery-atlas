@@ -5,7 +5,6 @@
 import { z } from "zod";
 import type { ArtworkDetail, ArtworkImage } from "@/lib/artwork/types";
 import { aicGet } from "./client";
-import { REVALIDATE_REFERENCE } from "./config";
 import {
   aspectRatioFrom,
   buildArtworkImage,
@@ -16,11 +15,10 @@ import { plainTitle } from "./museum";
 import {
   articUrl,
   cleanFileTitle,
-  excerpt,
+  copyExcerpt,
   intField,
   LIST_SIZE,
   listField,
-  parseCopy,
   readByIds,
   searchRecords,
   textField,
@@ -82,7 +80,7 @@ export function toMediaItem(
   return {
     id: String(raw.id),
     title: kind === "sites" ? name : cleanFileTitle(name),
-    description: excerpt(parseCopy(raw.description), 240),
+    description: copyExcerpt(raw.description, 240),
     url,
     artworks: (raw.artwork_ids ?? []).slice(0, 4).flatMap((id, index) => {
       const title = titles[index];
@@ -140,14 +138,17 @@ export interface ArtworkResources {
   sites: MediaItem[];
 }
 
-/** Other photographs of a public-domain work. The caller has checked its status. */
+/**
+ * Other photographs of a public-domain work. The caller has checked its status. Like the
+ * rest of what an artwork page reads, this is not kept in the data cache.
+ */
 async function alternateViews(artwork: ArtworkDetail): Promise<ArtworkImage[]> {
   const ids = artwork.related.imageIds.slice(0, MAX_VIEWS);
   if (ids.length === 0) return [];
   try {
     const json = await aicGet(
       `/images?ids=${ids.join(",")}&limit=${ids.length}&fields=id,alt_text,width,height,lqip`,
-      { revalidate: REVALIDATE_REFERENCE, timeoutMs: 5000, retries: 1 },
+      { timeoutMs: 5000, retries: 1 },
     );
     const page = toRecordPage(json, rawImage, ids.length);
     const base = resolveIiifBase("https://www.artic.edu/iiif/2");

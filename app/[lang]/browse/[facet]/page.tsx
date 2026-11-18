@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
   BackLink,
+  Credit,
   KeywordForm,
   OutLink,
   PageHeader,
@@ -36,16 +37,21 @@ type Params = Promise<{ lang: string; facet: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
   const { lang, facet } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   if (!isBrowseFacet(facet)) return { title: dict.meta.notFoundTitle };
   return {
     title: dict.browse.facets[facet],
     description: dict.browse.metaDescription,
-    alternates: languageAlternates(`/browse/${facet}`),
+    alternates: languageAlternates(locale, `/browse/${facet}`, {
+      q: keywordParam(await searchParams),
+    }),
   };
 }
 
@@ -226,7 +232,11 @@ export default async function FacetPage({
           <VocabularyLists vocabularies={data.vocabularies} dict={dict} />
         ) : null}
         {facet === "places" ? (
-          <p className="mt-10 max-w-2xl text-xs text-muted">{t.placeCredit}</p>
+          <Credit
+            text={t.placeCredit}
+            dict={dict}
+            className="mt-10 max-w-2xl text-xs text-muted"
+          />
         ) : null}
       </Container>
     </div>

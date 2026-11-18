@@ -4,6 +4,7 @@
  * return no records; covers come from one batch read. All of it is cached for a day.
  */
 import type { Artwork } from "@/lib/artwork/types";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import { getArtworksByIds } from "./artworks";
 import { aicGet } from "./client";
 import { COLORS, ENTRANCES, ERAS, REVALIDATE_REFERENCE } from "./config";
@@ -32,15 +33,20 @@ export async function getCollectionOverview(): Promise<CollectionOverview | null
   const [counts, hues, covers] = await Promise.allSettled([
     aicGet(overviewPath(), REQUEST),
     aicGet(huesPath(), REQUEST),
+    // The covers are a fixed list too.
     getArtworksByIds(
       ENTRANCES.map((e) => e.cover),
-      { timeoutMs: 6000, retries: 1 },
+      REQUEST,
     ),
   ]);
 
   if (counts.status !== "fulfilled") return null;
   const parsed = overviewResponseSchema.safeParse(counts.value);
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    // Counts arrived but could not be read: the section is left out, and the page not kept.
+    reportUpstreamFailure();
+    return null;
+  }
   const { entrances, eras } = parsed.data.aggregations;
 
   const coverById = new Map(
@@ -55,6 +61,7 @@ export async function getCollectionOverview(): Promise<CollectionOverview | null
     const huesParsed = huesResponseSchema.safeParse(hues.value);
     if (huesParsed.success)
       colors = colorCountsFromHues(huesParsed.data.aggregations.hues.buckets);
+    else reportUpstreamFailure();
   }
 
   return {

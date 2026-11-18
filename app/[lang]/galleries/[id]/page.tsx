@@ -16,21 +16,15 @@ import {
   parseGalleryId,
   parseSearchQuery,
 } from "@/lib/artic/queries";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
+import { LOCALE_TAGS, localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { format, formatCount } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string; id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 const loadGallery = cache(async (rawId: string) => {
   const id = parseGalleryId(rawId);
@@ -40,27 +34,26 @@ const loadGallery = cache(async (rawId: string) => {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
   const { lang, id } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   const lookup = await loadGallery(id).catch(() => null);
   if (lookup?.status !== "ok") return { title: dict.meta.notFoundTitle };
   const { gallery } = lookup;
+  const parsed = parseSearchQuery(await searchParams);
   return {
     title: gallery.name,
     description: format(dict.gallery.metaDescription, {
       gallery: gallery.name,
     }),
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [
-          LOCALE_TAGS[l],
-          localizePath(l, `/galleries/${gallery.id}`),
-        ]),
-      ),
-    },
+    alternates: languageAlternates(locale, `/galleries/${gallery.id}`, {
+      page: parsed.ok ? parsed.query.page : 1,
+    }),
   };
 }
 

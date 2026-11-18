@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
-import { OutLink } from "@/components/library/parts";
+import { Credit, OutLink } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight } from "@/components/ui/icons";
 import { getArtworkResources } from "@/lib/artic/media";
@@ -56,6 +56,7 @@ export async function ArtworkResources({
                     }),
                   }}
                   sizes="(min-width: 1024px) 24vw, 45vw"
+                  translatedAlt
                   className="max-h-full w-auto max-w-full object-contain"
                   fallbackClassName="h-full w-full"
                 />
@@ -76,17 +77,24 @@ export async function ArtworkResources({
           </h2>
           <div className="max-w-3xl space-y-6">
             {videos.map((video) => (
-              // The museum publishes no captions for this video.
-              // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video
-                key={video.id}
-                controls
-                preload="none"
-                src={video.url}
-                aria-label={video.title}
-                className="aspect-video w-full bg-paper-deep"
-              />
+              <div key={video.id}>
+                {/* The museum publishes no captions for this video. */}
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <video
+                  controls
+                  preload="none"
+                  src={video.url}
+                  aria-label={video.title}
+                  className="aspect-video w-full bg-paper-deep"
+                />
+                <p className="mt-3 text-sm">
+                  <OutLink href={video.url} dict={dict}>
+                    {dict.media.openVideo}
+                  </OutLink>
+                </p>
+              </div>
             ))}
+            <Credit text={dict.media.credit} dict={dict} />
           </div>
         </Reveal>
       ) : null}

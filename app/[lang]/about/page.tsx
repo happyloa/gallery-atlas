@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Container } from "@/components/ui/container";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,
@@ -25,11 +17,7 @@ export async function generateMetadata({
   return {
     title: dict.about.title,
     description: dict.about.description,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/about")]),
-      ),
-    },
+    alternates: languageAlternates(locale, "/about"),
   };
 }
 
@@ -101,8 +89,14 @@ function EnglishAbout({ newTab }: { newTab: string }) {
           . Only works the museum marks as public domain are shown.
         </p>
         <p>
-          Metadata: CC0. Descriptions: CC BY 4.0. Images are used under the
-          museum&apos;s{" "}
+          Metadata: CC0. Descriptions:{" "}
+          <ExternalLink
+            href="https://creativecommons.org/licenses/by/4.0/"
+            newTab={newTab}
+          >
+            CC BY 4.0
+          </ExternalLink>
+          . Images are used under the museum&apos;s{" "}
           <ExternalLink
             href="https://www.artic.edu/image-licensing"
             newTab={newTab}
@@ -170,10 +164,17 @@ function ChineseAbout({ newTab }: { newTab: string }) {
           <ExternalLink href="https://api.artic.edu/docs/" newTab={newTab}>
             芝加哥藝術博物館的公開 API
           </ExternalLink>
-          ，只顯示館方標示為公有領域的作品。館方資料只有英文，作品名稱、作者等資訊維持原文，搜尋請用英文。
+          ，只顯示館方標示為公有領域的作品。館方資料只有英文，作品名稱、藝術家等資訊維持原文，搜尋請用英文。
         </p>
         <p>
-          作品資料：CC0。作品說明：CC BY 4.0。圖片依館方的
+          作品資料：CC0。作品說明：
+          <ExternalLink
+            href="https://creativecommons.org/licenses/by/4.0/"
+            newTab={newTab}
+          >
+            CC BY 4.0
+          </ExternalLink>
+          。圖片依館方的
           <ExternalLink
             href="https://www.artic.edu/image-licensing"
             newTab={newTab}
@@ -186,7 +187,9 @@ function ChineseAbout({ newTab }: { newTab: string }) {
           </ExternalLink>
           使用。
         </p>
-        <p>Image and artwork data courtesy of the Art Institute of Chicago.</p>
+        <p lang="en">
+          Image and artwork data courtesy of the Art Institute of Chicago.
+        </p>
       </Section>
 
       <Section title="獨立專案聲明">

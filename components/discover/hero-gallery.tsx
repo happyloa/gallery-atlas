@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { GalleryRoom } from "@/components/gallery-room/gallery-room";
 import type { RoomArtwork } from "@/components/gallery-room/types";
@@ -25,6 +25,9 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
+/** The room's canvas takes a second to fade in over the flat picture. */
+const ROOM_FADE_MS = 1200;
+
 export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
   const { locale, dict } = useI18n();
   const t = dict.hero;
@@ -36,6 +39,17 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
   const [room, setRoom] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
+  // Once the room has faded in, the flat picture under it is taken away: left in place it
+  // would download another image, never seen, every time the visitor steps to a new work.
+  const [roomSettled, setRoomSettled] = useState(false);
+  useEffect(() => {
+    if (room !== "ready") return;
+    const timer = window.setTimeout(() => setRoomSettled(true), ROOM_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [room]);
+  const showFallback = !(room === "ready" && roomSettled);
+  // Titles, artists and dates are the museum's English text, whatever the page language.
+  const dataLang = locale === "en" ? undefined : "en";
 
   const roomArtworks = useMemo<RoomArtwork[]>(
     () =>
@@ -56,6 +70,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
   return (
     <section
       aria-labelledby="hero-heading"
+      data-tone="dark"
       className="relative isolate flex flex-col overflow-hidden bg-gallery text-gallery-text lg:block lg:min-h-[max(100svh,760px)]"
     >
       {/* Stage: the room itself. On small screens it sits above the text; from lg it fills the hero. */}
@@ -73,7 +88,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
             room === "ready" && "opacity-0",
           )}
         >
-          {active ? (
+          {active && showFallback ? (
             <ArtworkImage
               key={active.id}
               image={active.image}
@@ -138,6 +153,7 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
           <div className="w-full max-w-sm shrink-0 animate-rise [animation-delay:calc(var(--intro-delay)+500ms)] lg:w-80">
             <div
               aria-live="polite"
+              data-tone="light"
               className="border-l-2 border-accent bg-paper/95 py-4 pr-5 pl-4 text-ink shadow-xl"
             >
               <p className="text-[0.6875rem] tracking-[0.16em] text-muted uppercase">
@@ -151,11 +167,16 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
                   {pad(activeIndex + 1)} / {pad(count)}
                 </span>
               </p>
-              <p className="mt-2 text-sm font-medium">{active.artist}</p>
-              <p className="font-serif text-lg leading-snug italic">
+              <p lang={dataLang} className="mt-2 text-sm font-medium">
+                {active.artist}
+              </p>
+              <p
+                lang={dataLang}
+                className="font-serif text-lg leading-snug italic"
+              >
                 {active.title}
               </p>
-              <p className="mt-1 text-sm text-muted">
+              <p lang={dataLang} className="mt-1 text-sm text-muted">
                 {[active.dateDisplay, active.medium]
                   .filter(Boolean)
                   .join(" · ")}

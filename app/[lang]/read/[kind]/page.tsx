@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
   BackLink,
+  Credit,
   IndexList,
   indexLinkClass,
   indexTitleClass,
   KeywordForm,
   ListPagination,
+  MUSEUM_SITE,
   PageHeader,
   ResultCount,
 } from "@/components/library/parts";
@@ -32,16 +34,23 @@ type Params = Promise<{ lang: string; kind: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
   const { lang, kind } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   if (!isLibraryKind(kind)) return { title: dict.meta.notFoundTitle };
+  const query = await searchParams;
   return {
     title: dict.read.kinds[kind],
     description: dict.read.metaDescription,
-    alternates: languageAlternates(`/read/${kind}`),
+    alternates: languageAlternates(locale, `/read/${kind}`, {
+      q: keywordParam(query),
+      page: pageParam(query) ?? 1,
+    }),
   };
 }
 
@@ -60,6 +69,8 @@ export default async function LibraryKindPage({
   const query = await searchParams;
   const q = keywordParam(query);
   const page = pageParam(query);
+  // Past the last page the museum's search can show: no such page, and no request for it.
+  if (page === null) notFound();
   const base = localizePath(locale, `/read/${kind}`);
   const title = t.kinds[kind];
   const result = await attempt(() =>
@@ -137,6 +148,15 @@ export default async function LibraryKindPage({
               totalPages={result.data.totalPages}
               hrefFor={(next) => withQuery(base, { q, page: next })}
             />
+            {/* The rows quote the museum's own text. */}
+            {result.data.items.length > 0 ? (
+              <Credit
+                text={t.credit}
+                dict={dict}
+                href={MUSEUM_SITE}
+                className="mt-16 text-xs text-muted"
+              />
+            ) : null}
           </>
         ) : null}
       </Container>

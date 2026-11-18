@@ -11,6 +11,7 @@ import {
 } from "@/components/library/parts";
 import { Container } from "@/components/ui/container";
 import { searchArtworks } from "@/lib/artic/artworks";
+import { MAX_PAGE } from "@/lib/artic/config";
 import { getFacetTerm, isWorkFacet, parseFacetId } from "@/lib/artic/directory";
 import { EMPTY_QUERY } from "@/lib/artic/search-url";
 import { localizePath } from "@/lib/i18n/config";
@@ -34,16 +35,21 @@ const loadTerm = cache(async (facet: string, rawId: string) => {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
   const { lang, facet, id } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   const term = await loadTerm(facet, id).catch(() => null);
   if (!term) return { title: dict.meta.notFoundTitle };
   return {
     title: term.title,
-    alternates: languageAlternates(`/browse/${facet}/${id}`),
+    alternates: languageAlternates(locale, `/browse/${facet}/${id}`, {
+      page: pageParam(await searchParams, MAX_PAGE) ?? 1,
+    }),
   };
 }
 
@@ -59,7 +65,9 @@ export default async function FacetTermPage({
   const dict = getDictionary(locale);
   const term = await loadTerm(facet, id);
   if (!term || !isWorkFacet(facet)) notFound();
-  const page = pageParam(await searchParams);
+  // Works come twelve to a page, so the search window ends at a different page here.
+  const page = pageParam(await searchParams, MAX_PAGE);
+  if (page === null) notFound();
   const base = localizePath(locale, `/browse/${facet}/${id}`);
   const facetTitle = dict.browse.facets[facet];
 

@@ -3,8 +3,7 @@ import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { Reveal } from "@/components/motion/reveal";
 import { buttonStyles } from "@/components/ui/button";
 import { ArrowRight } from "@/components/ui/icons";
-import { getArtwork } from "@/lib/artic/artworks";
-import { getWorkOfTheDayId } from "@/lib/artic/museum";
+import { getWorkOfTheDay } from "@/lib/artic/museum";
 import { fitClass } from "@/lib/artwork/fit";
 import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
@@ -21,10 +20,9 @@ export async function DailyWork({
   locale: Locale;
   dict: Dictionary;
 }) {
-  const id = await getWorkOfTheDayId(new Date());
-  const lookup = id ? await getArtwork(id).catch(() => null) : null;
-  if (lookup?.status !== "ok") return null;
-  const { artwork } = lookup;
+  // The pick comes back as a record, so there is no second read for the work itself.
+  const artwork = await getWorkOfTheDay(new Date());
+  if (!artwork) return null;
   const t = dict.daily;
   const href = localizePath(locale, `/artworks/${artwork.id}`);
 
@@ -48,7 +46,10 @@ export async function DailyWork({
         <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
           {t.eyebrow}
         </p>
-        <h2 lang="en" className="mt-4 font-serif text-4xl leading-tight italic sm:text-5xl">
+        <h2
+          lang="en"
+          className="mt-4 font-serif text-4xl leading-tight italic sm:text-5xl"
+        >
           {artwork.title}
         </h2>
         <p lang="en" className="mt-4 text-lg">

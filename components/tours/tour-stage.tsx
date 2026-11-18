@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { GalleryRoom } from "@/components/gallery-room/gallery-room";
 import type { RoomArtwork } from "@/components/gallery-room/types";
@@ -15,6 +15,9 @@ import type { RoomPlace } from "@/lib/tours/room-plan";
 import { cn } from "@/lib/utils";
 
 const NO_WORKS: readonly Artwork[] = [];
+
+/** The room's canvas takes a second to fade in over the flat picture. */
+const ROOM_FADE_MS = 1200;
 
 /** What the stage says about the stop being heard. */
 export interface StageStop {
@@ -75,6 +78,8 @@ export function TourStage({
     [works],
   );
 
+  const stageRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     if (!fullScreen) return;
     const onKey = (event: KeyboardEvent) => {
@@ -90,18 +95,57 @@ export function TourStage({
       ...document.querySelectorAll<HTMLElement>("header, footer"),
     ];
     for (const element of chrome) element.style.visibility = "hidden";
+
+    // Everything behind the stage is out of reach while it fills the screen: keyboard
+    // focus and screen readers stay on the stage and the player bar. Walking up from the
+    // stage, each sibling on the way is made inert unless it holds something to keep.
+    const keep = [
+      ...document.querySelectorAll<HTMLElement>("[data-tour-keep]"),
+    ];
+    const silenced: HTMLElement[] = [];
+    let node: HTMLElement | null = stageRef.current;
+    while (node && node !== document.body) {
+      const parent: HTMLElement | null = node.parentElement;
+      if (!parent) break;
+      for (const sibling of parent.children) {
+        if (sibling === node || !(sibling instanceof HTMLElement)) continue;
+        if (sibling.inert || keep.some((kept) => sibling.contains(kept)))
+          continue;
+        sibling.inert = true;
+        silenced.push(sibling);
+      }
+      node = parent;
+    }
+
     return () => {
       window.removeEventListener("keydown", onKey);
       root.style.overflow = previous;
       for (const element of chrome) element.style.visibility = "";
+      for (const element of silenced) element.inert = false;
     };
   }, [fullScreen, onFullScreenChange]);
 
   const roomShown = started && !unavailable && readyRoom === place.room;
 
+  // Once the room has faded in, the flat picture under it is taken away: left in place it
+  // would download another image, never seen, at every stop. It comes back whenever the
+  // room is not showing (the next room being built, or WebGL lost).
+  const [settledRoom, setSettledRoom] = useState<number | null>(null);
+  useEffect(() => {
+    if (!roomShown) return;
+    const room = place.room;
+    const timer = window.setTimeout(() => setSettledRoom(room), ROOM_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [roomShown, place.room]);
+  const showFallback = !(roomShown && settledRoom === place.room);
+
   return (
     <section
+      ref={stageRef}
       aria-label={t.stage}
+      data-tone="dark"
+      // "playing" lets app/globals.css unstick the stage on a short, narrow screen.
+      data-tour-stage={fullScreen ? "full" : started ? "playing" : "idle"}
       className={cn(
         "isolate overflow-hidden bg-gallery text-gallery-text",
         fullScreen
@@ -117,7 +161,7 @@ export function TourStage({
         className="absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_38%,#4a4640_0%,#2a2825_48%,#1a1917_100%)]"
       />
 
-      {work ? (
+      {work && showFallback ? (
         <div
           className={cn(
             "absolute inset-x-6 top-6 bottom-24 flex items-center justify-center transition-opacity duration-700 ease-gallery sm:inset-x-12 sm:top-10",

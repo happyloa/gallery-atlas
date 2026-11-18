@@ -10,26 +10,20 @@ import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { ArrowLeft } from "@/components/ui/icons";
-import { OutLink } from "@/components/library/parts";
+import { Credit, OutLink } from "@/components/library/parts";
 import { getArtist, searchArtworks } from "@/lib/artic/artworks";
 import { describeFailure } from "@/lib/artic/error-reason";
 import { EMPTY_QUERY, parseId, parseSearchQuery } from "@/lib/artic/queries";
 import type { Artist } from "@/lib/artwork/types";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
+import { LOCALE_TAGS, localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { format, formatCount } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string; id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 /** One upstream read shared by generateMetadata and the page. */
 const loadArtist = cache(async (rawId: string) => {
@@ -40,8 +34,10 @@ const loadArtist = cache(async (rawId: string) => {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
   const { lang, id } = await params;
   const locale = localeOf(lang);
@@ -49,17 +45,13 @@ export async function generateMetadata({
   const lookup = await loadArtist(id).catch(() => null);
   if (lookup?.status !== "ok") return { title: dict.meta.notFoundTitle };
   const { artist } = lookup;
+  const parsed = parseSearchQuery(await searchParams);
   return {
     title: artist.name,
     description: format(dict.artist.metaDescription, { name: artist.name }),
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [
-          LOCALE_TAGS[l],
-          localizePath(l, `/artists/${artist.id}`),
-        ]),
-      ),
-    },
+    alternates: languageAlternates(locale, `/artists/${artist.id}`, {
+      page: parsed.ok ? parsed.query.page : 1,
+    }),
   };
 }
 
@@ -120,7 +112,8 @@ export default async function ArtistPage({
           ) : null}
           {artist.altNames.length > 0 ? (
             <p className="mt-5 max-w-xl text-sm leading-6 text-muted">
-              {dict.artistIndex.alsoKnownAs}：
+              {dict.artistIndex.alsoKnownAs}
+              {dict.common.colon}
               <span lang="en">{artist.altNames.join("; ")}</span>
             </p>
           ) : null}
@@ -155,7 +148,11 @@ export default async function ArtistPage({
                 </p>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted">{t.bioCredit}</p>
+            <Credit
+              text={t.bioCredit}
+              dict={dict}
+              className="mt-6 text-xs text-muted"
+            />
           </div>
         ) : null}
       </Container>

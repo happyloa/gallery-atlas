@@ -1,6 +1,7 @@
 /**
- * English interface strings. Plain strings only (placeholders in {braces}), so the whole
- * dictionary can cross the server/client boundary. zh-tw.ts must match this shape.
+ * English interface strings. Plain strings only (placeholders in {braces}), so any section
+ * can cross the server/client boundary; index.ts lists the ones that do. zh-tw.ts must
+ * match this shape.
  */
 export const en = {
   meta: {
@@ -101,9 +102,9 @@ export const en = {
     tryAgain: "Try again",
     tryingAgain: "Trying again…",
     eraLabel: "Era",
-    colorLabel: "Colour",
+    colorLabel: "Color",
     anyEra: "Any era",
-    anyColor: "Any colour",
+    anyColor: "Any color",
     tagFilter: {
       style: "Style: {value}",
       subject: "Subject: {value}",
@@ -161,7 +162,7 @@ export const en = {
     worksCount: "{count} works",
     worksCountOne: "1 work",
     erasHeading: "By century",
-    colorsHeading: "By colour",
+    colorsHeading: "By color",
   },
   artist: {
     eyebrow: "Artist",
@@ -287,7 +288,6 @@ export const en = {
     origin: "Place of origin",
     creditLine: "Credit line",
     viewAtMuseum: "View at the Art Institute of Chicago",
-    viewFullImage: "View full image",
     aboutWork: "About this work",
     descriptionCredit: "Description: Art Institute of Chicago, CC BY 4.0.",
     imageCredit: "Image: Art Institute of Chicago, public domain.",
@@ -299,7 +299,7 @@ export const en = {
       subject: "Subject",
       theme: "Theme",
     },
-    colorHeading: "Dominant colour",
+    colorHeading: "Dominant color",
     moreInColor: "More {color} works",
     moreFromEra: "More from {era}",
     onView: "On view at the Art Institute of Chicago",
@@ -318,7 +318,7 @@ export const en = {
     restrictedBody: "It isn’t public domain, or has no image to show.",
     listen: "Listen",
     audioStop: "Audio guide, stop {stop}",
-    audioCredit: "Audio: Art Institute of Chicago.",
+    audioCredit: "Audio: © Art Institute of Chicago.",
     furtherReading: "Further reading",
     readingKinds: {
       article: "Article",
@@ -327,6 +327,7 @@ export const en = {
     moreFromPlace: "More from {place}",
   },
   zoom: {
+    open: "View full image",
     dialogLabel: "Full image: {title}",
     close: "Close",
     zoomIn: "Zoom in",
@@ -359,7 +360,7 @@ export const en = {
     description:
       "Your saved artworks and personal exhibitions, kept in this browser.",
     emptyTitle: "Your walls are still bare.",
-    emptyBody: "Favorites and exhibitions go here, saved in this browser only.",
+    emptyBody: "Favorites and exhibitions go here.",
     favoritesHeading: "Favorites",
     favoritesCount: "{count} saved works",
     favoritesCountOne: "1 saved work",
@@ -373,7 +374,6 @@ export const en = {
   },
   exhibitions: {
     heading: "My Exhibitions",
-    intro: "Group works into exhibitions of your own.",
     newLabel: "New exhibition name",
     newPlaceholder: "For example: Night scenes",
     create: "Create exhibition",
@@ -389,7 +389,6 @@ export const en = {
     addToExhibition: "Add to exhibition",
     addLabel: "Add “{title}” to an exhibition",
     pickerTitle: "Add to an exhibition",
-    pickerHint: "Choose one or more.",
     pickerEmpty: "No exhibitions yet.",
     createAndAdd: "Create and add",
     added: "Added to “{title}”.",

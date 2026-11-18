@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExhibitionView } from "@/components/collections/exhibition-view";
 import { Container } from "@/components/ui/container";
-import { isLocale } from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string; exhibitionId: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 /** Exhibition ids are generated in the browser (UUIDs); anything else cannot exist. */
 const EXHIBITION_ID = /^[A-Za-z0-9-]{1,64}$/;

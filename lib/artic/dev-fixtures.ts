@@ -2,7 +2,8 @@
  * Offline stand-in for the AIC API, used ONLY when AIC_FIXTURES=1 outside production
  * (end-to-end tests, offline development). It answers the same paths aicGet builds, from
  * the dated snapshot in lib/fixtures, plus one non-public-domain record for the
- * "restricted" path. Production builds never enable it (see isFixtureMode).
+ * "restricted" path. Production builds never enable it (see isFixtureMode in
+ * fixture-mode.ts), and the client imports this file only once that says yes.
  *
  * Searches understand the clauses this site sends (terms, ranges, nested bools) and the
  * three aggregation kinds it asks for, so filters and homepage counts work offline too.
@@ -12,14 +13,6 @@ import { ARTWORK_TYPES, PLACE_FIELD } from "./config";
 import { TOUR_INDEX } from "./tour-index";
 
 const IIIF_URL = "https://www.artic.edu/iiif/2";
-
-/** Fixture mode is opt-in and never available in a production build. */
-export function isFixtureMode(): boolean {
-  if (typeof process === "undefined") return false;
-  return (
-    process.env.AIC_FIXTURES === "1" && process.env.NODE_ENV !== "production"
-  );
-}
 
 type Raw = Record<string, unknown> & {
   id: number;
@@ -161,7 +154,8 @@ const SOUNDS = [
   {
     id: "d9683532-66fd-67c3-5588-021527d115af",
     title: "Audio stop 781.mp3",
-    content: "https://www.artic.edu/assets/d9683532-66fd-67c3-5588-021527d115af",
+    content:
+      "https://www.artic.edu/assets/d9683532-66fd-67c3-5588-021527d115af",
   },
 ];
 
@@ -186,7 +180,8 @@ const EXHIBITIONS = [
   {
     id: 9001,
     title: "Seurat and His Circle",
-    short_description: "<p>A fixture exhibition about <em>pointillism</em>.</p>",
+    short_description:
+      "<p>A fixture exhibition about <em>pointillism</em>.</p>",
     web_url: "https://www.artic.edu/exhibitions/9001/seurat-and-his-circle",
     aic_start_at: "2026-10-01T00:00:00-05:00",
     aic_end_at: "2099-01-10T00:00:00-06:00",
@@ -263,7 +258,10 @@ const AGENTS: Record<number, Record<string, unknown>> = {
 
 type FixtureRecord = Record<string, unknown>;
 
-/** A session an hour from now, so "today" always has something on it. */
+/**
+ * A session starting this instant, so the museum's "today" always has something on it. An
+ * hour ahead would land on tomorrow during the last hour of the day in Chicago.
+ */
 const soonOccurrence = (): FixtureRecord => ({
   id: "7fd63c7d-8353-55d2-af90-c832f2cf33d8",
   title: "Spotlight Talk: Seurat",
@@ -272,8 +270,8 @@ const soonOccurrence = (): FixtureRecord => ({
   short_description: "A short talk in the galleries.",
   image_url:
     "https://artic-web.imgix.net/fixture/talk.jpg?rect=0%2C0%2C100%2C56&w=1200&h=675",
-  start_at: new Date(Date.now() + 3_600_000).toISOString(),
-  end_at: new Date(Date.now() + 5_400_000).toISOString(),
+  start_at: new Date().toISOString(),
+  end_at: new Date(Date.now() + 1_800_000).toISOString(),
   location: "Gallery 240",
   is_private: false,
 });
@@ -355,7 +353,8 @@ const MUSEUM_RECORDS: Record<string, FixtureRecord[]> = {
     {
       id: 291,
       title: "Monet and Chicago",
-      web_url: "https://www.artic.edu/press/press-releases/291/monet-and-chicago",
+      web_url:
+        "https://www.artic.edu/press/press-releases/291/monet-and-chicago",
       copy: " A fixture press release about Monet.",
     },
   ],
@@ -368,7 +367,12 @@ const MUSEUM_RECORDS: Record<string, FixtureRecord[]> = {
     },
   ],
   "landing-pages": [
-    { id: 13, title: "Research Center", web_url: null, copy: " A fixture landing page." },
+    {
+      id: 13,
+      title: "Research Center",
+      web_url: null,
+      copy: " A fixture landing page.",
+    },
   ],
   "static-pages": [{ id: 11, title: "Articles", web_url: "/articles" }],
   agents: Object.values(AGENTS),
@@ -381,7 +385,11 @@ const MUSEUM_RECORDS: Record<string, FixtureRecord[]> = {
   "artwork-place-qualifiers": [{ id: 50, title: "Place depicted:" }],
   "artwork-types": ARTWORK_TYPES.map(({ id, label }) => ({ id, title: label })),
   "category-terms": [
-    { id: "PC-10", title: "Painting and Sculpture of Europe", subtype: "department" },
+    {
+      id: "PC-10",
+      title: "Painting and Sculpture of Europe",
+      subtype: "department",
+    },
     { id: "TM-66", title: "oil on canvas", subtype: "classification" },
     { id: "TM-2451", title: "oil paint", subtype: "material" },
     { id: "TM-4273", title: "pointillism technique", subtype: "technique" },
@@ -832,7 +840,8 @@ function searchMuseum(records: FixtureRecord[], params: SearchParams): unknown {
       .split(/\s+/)
       .filter(Boolean) ?? [];
   const found = records.filter((record) => {
-    if (!matches(record as Raw, { bool: { filter: bool?.filter } })) return false;
+    if (!matches(record as Raw, { bool: { filter: bool?.filter } }))
+      return false;
     const haystack = Object.values(record)
       .filter((value) => typeof value === "string")
       .join(" ")

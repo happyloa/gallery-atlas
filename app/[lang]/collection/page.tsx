@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 import { ExhibitionsSection } from "@/components/collections/exhibitions-section";
 import { FavoritesWall } from "@/components/collections/favorites-wall";
 import { Container } from "@/components/ui/container";
-import { isLocale } from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,

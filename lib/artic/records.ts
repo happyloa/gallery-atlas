@@ -4,18 +4,24 @@
  */
 import { z } from "zod";
 import type { TextRun } from "@/lib/artwork/types";
-import { aicGet, AicError, isAicError } from "./client";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import {
-  MAX_REQUEST_PATH,
-  MAX_SEARCH_RESULTS,
-  REVALIDATE_REFERENCE,
-} from "./config";
+  aicGet,
+  AicError,
+  invalidResponse,
+  isAicError,
+  pastSearchWindow,
+} from "./client";
+import { MAX_REQUEST_PATH, maxPageFor, REVALIDATE_REFERENCE } from "./config";
 import { decodeEntities, parseDescription } from "./description";
 
 export type Clause = Record<string, unknown>;
 
 /** Records per page on the index pages. */
 export const LIST_SIZE = 24;
+
+/** The last index page the API's search window can show. */
+export const MAX_LIST_PAGE = maxPageFor(LIST_SIZE);
 
 const LONG_TEXT = { maxParagraphs: 900, maxChars: 150_000 };
 
@@ -94,11 +100,7 @@ export function toRecordPage<T extends z.ZodType>(
   page = 1,
 ): RecordPage<z.infer<T>> {
   const parsed = envelope.safeParse(json);
-  if (!parsed.success)
-    throw new AicError(
-      "invalid_response",
-      "The museum API sent an unexpected list.",
-    );
+  if (!parsed.success) throw invalidResponse("list");
   const total = parsed.data.pagination?.total ?? parsed.data.data.length;
   return {
     items: parsed.data.data.flatMap((record) => {
@@ -107,21 +109,28 @@ export function toRecordPage<T extends z.ZodType>(
     }),
     total,
     page,
+    // A whole page past the window is refused upstream, so the last page is the last full one.
     totalPages:
-      limit > 0 ? Math.ceil(Math.min(total, MAX_SEARCH_RESULTS) / limit) : 0,
+      limit > 0 ? Math.min(maxPageFor(limit), Math.ceil(total / limit)) : 0,
     aggregations: parsed.data.aggregations ?? {},
   };
 }
 
+/**
+ * A search of one resource. Without a keyword the result is kept in the data cache for
+ * `revalidate` seconds; with one it is not kept at all (see the note in config.ts).
+ */
 export async function searchRecords<T extends z.ZodType>(
   resource: string,
   item: T,
   search: RecordSearch,
   revalidate: number = REVALIDATE_REFERENCE,
 ): Promise<RecordPage<z.infer<T>>> {
+  if (search.limit > 0 && (search.page ?? 1) > maxPageFor(search.limit))
+    throw pastSearchWindow();
   const json = await aicGet(
     paramsPath(`/${resource}/search`, searchParamsFor(search)),
-    { revalidate },
+    search.keyword ? {} : { revalidate },
   );
   return toRecordPage(json, item, search.limit, search.page ?? 1);
 }
@@ -140,26 +149,31 @@ export async function readRecord<T extends z.ZodType>(
     throw error;
   }
   const parsed = z.object({ data: z.unknown() }).safeParse(json);
-  if (!parsed.success) return null;
-  const record = item.safeParse(parsed.data.data);
-  return record.success ? (record.data as z.infer<T>) : null;
+  const record = parsed.success ? item.safeParse(parsed.data.data) : null;
+  if (!record?.success) {
+    // The API answered, but not with a record: "not found" here is a guess, not a fact.
+    reportUpstreamFailure();
+    return null;
+  }
+  return record.data as z.infer<T>;
 }
 
 /**
  * Records by id, in the order given. For optional parts of a page: a failure gives an
- * empty list.
+ * empty list. Pass `revalidate` only when the ids come from a fixed list.
  */
 export async function readByIds<T extends z.ZodType>(
   resource: string,
   ids: readonly (string | number)[],
   item: T,
   fields: string,
+  revalidate?: number,
 ): Promise<z.infer<T>[]> {
   if (ids.length === 0) return [];
   try {
     const json = await aicGet(
       `/${resource}?ids=${ids.join(",")}&limit=${ids.length}&fields=${fields}`,
-      { revalidate: REVALIDATE_REFERENCE, timeoutMs: 5000, retries: 1 },
+      { revalidate, timeoutMs: 5000, retries: 1 },
     );
     const { items } = toRecordPage(json, item, ids.length);
     const order = new Map(ids.map((id, index) => [String(id), index]));
@@ -187,13 +201,19 @@ export interface BodySection {
 
 const plainRun = (text: string): TextRun[] => [{ text, italic: false }];
 
+const isHtmlCopy = (copy: string | null | undefined): boolean =>
+  /<(p|div|ul|ol|li|h[1-6])\b/i.test(copy ?? "");
+
 /**
  * The API's `copy` field: HTML in some resources, and in the rest plain text whose
  * paragraphs are separated by runs of three or more spaces.
  */
-export function parseCopy(copy: string | null | undefined): TextRun[][] | null {
+export function parseCopy(
+  copy: string | null | undefined,
+  html: boolean = isHtmlCopy(copy),
+): TextRun[][] | null {
   if (!copy?.trim()) return null;
-  if (/<(p|div|ul|ol|li|h[1-6])\b/i.test(copy))
+  if (html)
     return parseDescription(
       copy
         .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
@@ -258,6 +278,30 @@ export function excerpt(
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), max - 30)).trimEnd()}…`;
+}
+
+/** How much of a text is read for its excerpt: the opening lines and their markup. */
+const EXCERPT_SOURCE_CHARS = 4000;
+
+/**
+ * The opening lines of a `copy` or `description` field. Only the start of the text is
+ * parsed: an index page shows a line or two from each of 24 articles, and parsing every
+ * article in full cost more CPU than the rest of the page.
+ */
+export function copyExcerpt(
+  copy: string | null | undefined,
+  max = 190,
+): string | null {
+  if (!copy) return null;
+  let head = copy;
+  if (copy.length > EXCERPT_SOURCE_CHARS) {
+    head = copy.slice(0, EXCERPT_SOURCE_CHARS);
+    // Half a tag left at the cut would be read as text.
+    const open = head.lastIndexOf("<");
+    if (open > head.lastIndexOf(">")) head = head.slice(0, open);
+  }
+  // Whether the text is HTML is still decided on all of it, as parseCopy does.
+  return excerpt(parseCopy(head, isHtmlCopy(copy)), max);
 }
 
 const SMALL_WORDS = new Set([

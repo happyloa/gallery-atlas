@@ -3,23 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { TourPlayer } from "@/components/tours/tour-player";
+import { Credit, MUSEUM_SITE } from "@/components/library/parts";
 import { Container } from "@/components/ui/container";
 import { ArrowLeft } from "@/components/ui/icons";
 import { parseId } from "@/lib/artic/queries";
 import { getTour } from "@/lib/artic/tours";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
+import { localizePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string; id: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 const loadTour = cache(async (rawId: string) => {
   const id = parseId(rawId);
@@ -44,14 +38,7 @@ export async function generateMetadata({
   return {
     title: (locale === "zh-tw" && tour.zhTitle) || tour.title,
     description: blurb || dict.tours.metaDescription,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [
-          LOCALE_TAGS[l],
-          localizePath(l, `/tours/${tour.id}`),
-        ]),
-      ),
-    },
+    alternates: languageAlternates(locale, `/tours/${tour.id}`),
   };
 }
 
@@ -121,7 +108,12 @@ export default async function TourPage({ params }: { params: Params }) {
 
       <Container className="mt-12">
         <TourPlayer tour={tour} />
-        <p className="mt-10 text-xs text-muted">{t.credit}</p>
+        <Credit
+          text={t.credit}
+          dict={dict}
+          href={MUSEUM_SITE}
+          className="mt-10 text-xs text-muted"
+        />
       </Container>
     </article>
   );

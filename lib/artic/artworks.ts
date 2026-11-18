@@ -3,16 +3,23 @@
  * already filtered to displayable public-domain works.
  */
 import type { Artist, Artwork, ArtworkDetail } from "@/lib/artwork/types";
-import { aicGet, AicError, isAicError } from "./client";
+import {
+  aicGet,
+  AicError,
+  invalidResponse as invalid,
+  isAicError,
+  pastSearchWindow,
+} from "./client";
 import type { AicRequestOptions } from "./client";
 import {
   MAX_IDS_PER_REQUEST,
   MAX_PAGE,
   MAX_REQUEST_PATH,
   MAX_SEARCH_RESULTS,
-  REVALIDATE_ARTWORK,
+  maxPageFor,
+  PAGE_SIZE,
+  REVALIDATE_LISTING,
   REVALIDATE_REFERENCE,
-  REVALIDATE_SEARCH,
 } from "./config";
 import { resolveIiifBase } from "./images";
 import { toArtist, toArtwork, toArtworkDetail, toArtworks } from "./mapper";
@@ -24,12 +31,17 @@ import {
   searchPath,
 } from "./queries";
 import type { SearchQuery, SearchScope } from "./queries";
+import { hasFilters } from "./search-url";
 import {
   detailResponseSchema,
   listResponseSchema,
   searchResponseSchema,
 } from "./schema";
 
+/**
+ * Reads of works are not kept in the data cache: there are too many works, searches and
+ * id lists for KV's daily writes (see config.ts). The exceptions are named where they occur.
+ */
 type RequestOptions = Omit<AicRequestOptions, "revalidate">;
 
 export interface SearchResult {
@@ -43,10 +55,16 @@ export interface SearchResult {
   limited: boolean;
 }
 
-function invalid(what: string): AicError {
-  return new AicError(
-    "invalid_response",
-    `The museum API sent an unexpected ${what} response.`,
+/**
+ * Explore as a visitor first sees it: every work, first page, no scope. It is the one
+ * search with a fixed URL, and the one every visit to the homepage asks for.
+ */
+function isDefaultListing(query: SearchQuery, scope?: SearchScope): boolean {
+  return (
+    !scope &&
+    query.page === 1 &&
+    query.sort === "relevance" &&
+    !hasFilters(query)
   );
 }
 
@@ -55,6 +73,9 @@ export async function searchArtworks(
   options: RequestOptions = {},
   scope?: SearchScope,
 ): Promise<SearchResult> {
+  // Asked for here, the API would answer 403; pages check first, this catches the rest.
+  if (query.page > maxPageFor(scope?.limit ?? PAGE_SIZE))
+    throw pastSearchWindow();
   const path = searchPath(query, scope);
   // The museum's CDN rejects very long URLs outright; say so plainly instead.
   if (path.length > MAX_REQUEST_PATH)
@@ -62,10 +83,12 @@ export async function searchArtworks(
       "bad_request",
       "This search has too many filters at once. Remove one and try again.",
     );
-  const json = await aicGet(path, {
-    ...options,
-    revalidate: REVALIDATE_SEARCH,
-  });
+  const json = await aicGet(
+    path,
+    isDefaultListing(query, scope)
+      ? { ...options, revalidate: REVALIDATE_LISTING }
+      : options,
+  );
   const parsed = searchResponseSchema.safeParse(json);
   if (!parsed.success) throw invalid("search");
   const { pagination, data, config } = parsed.data;
@@ -98,10 +121,7 @@ export async function getArtwork(
 ): Promise<ArtworkLookup> {
   let json: unknown;
   try {
-    json = await aicGet(artworkPath(id), {
-      ...options,
-      revalidate: REVALIDATE_ARTWORK,
-    });
+    json = await aicGet(artworkPath(id), options);
   } catch (error) {
     if (isAicError(error) && error.code === "not_found")
       return { status: "not_found" };
@@ -126,19 +146,19 @@ export interface ArtworksByIdsResult {
 /**
  * Batch read for saved works. Ids are de-duplicated and fetched in chunks, one chunk at a
  * time, to stay gentle on the API's rate limit.
+ *
+ * Pass `revalidate` only for a list fixed in the code (the homepage's works, a tour's
+ * stops). A visitor's own list is different every time and must not be kept.
  */
 export async function getArtworksByIds(
   ids: readonly number[],
-  options: RequestOptions = {},
+  options: AicRequestOptions = {},
 ): Promise<ArtworksByIdsResult> {
   const unique = [...new Set(ids)];
   const found = new Map<number, Artwork>();
   for (let start = 0; start < unique.length; start += MAX_IDS_PER_REQUEST) {
     const chunk = unique.slice(start, start + MAX_IDS_PER_REQUEST);
-    const json = await aicGet(artworksByIdsPath(chunk), {
-      ...options,
-      revalidate: REVALIDATE_ARTWORK,
-    });
+    const json = await aicGet(artworksByIdsPath(chunk), options);
     const parsed = listResponseSchema.safeParse(json);
     if (!parsed.success) throw invalid("batch");
     for (const artwork of toArtworks(
@@ -164,25 +184,31 @@ export type ArtworkDetailLookup =
   | { status: "restricted" };
 
 /** One work with everything the detail page shows, including the description. */
-export async function getArtworkDetail(id: number, options: RequestOptions = {}): Promise<ArtworkDetailLookup> {
+export async function getArtworkDetail(
+  id: number,
+  options: RequestOptions = {},
+): Promise<ArtworkDetailLookup> {
   let json: unknown;
   try {
-    json = await aicGet(artworkPath(id, true), { ...options, revalidate: REVALIDATE_ARTWORK });
+    json = await aicGet(artworkPath(id, true), options);
   } catch (error) {
-    if (isAicError(error) && error.code === "not_found") return { status: "not_found" };
+    if (isAicError(error) && error.code === "not_found")
+      return { status: "not_found" };
     throw error;
   }
   const parsed = detailResponseSchema.safeParse(json);
   if (!parsed.success) throw invalid("artwork");
-  const artwork = toArtworkDetail(parsed.data.data, resolveIiifBase(parsed.data.config?.iiif_url));
+  const artwork = toArtworkDetail(
+    parsed.data.data,
+    resolveIiifBase(parsed.data.config?.iiif_url),
+  );
   return artwork ? { status: "ok", artwork } : { status: "restricted" };
 }
 
 export type ArtistLookup =
-  | { status: "ok"; artist: Artist }
-  | { status: "not_found" };
+  { status: "ok"; artist: Artist } | { status: "not_found" };
 
-/** An artist (AIC agent) record. */
+/** An artist (AIC agent) record, kept for a day like other single records. */
 export async function getArtist(
   id: number,
   options: RequestOptions = {},

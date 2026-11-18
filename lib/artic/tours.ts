@@ -11,9 +11,10 @@ import type {
   TourStop,
   TourSummary,
 } from "@/lib/artwork/types";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import { getArtworksByIds } from "./artworks";
 import { aicGet, isAicError } from "./client";
-import { REVALIDATE_ARTWORK, REVALIDATE_REFERENCE } from "./config";
+import { REVALIDATE_LISTING, REVALIDATE_REFERENCE } from "./config";
 import { parseDescription } from "./description";
 import { museumUrl, plainTitle } from "./museum";
 import { TOUR_INDEX } from "./tour-index";
@@ -45,7 +46,11 @@ const rawLocation = z.object({
 
 function records<T extends z.ZodType>(json: unknown, item: T): z.infer<T>[] {
   const data = z.object({ data: z.array(z.unknown()) }).safeParse(json);
-  if (!data.success) return [];
+  if (!data.success) {
+    // An answer that is not a list: carry on without it, but the page is incomplete.
+    reportUpstreamFailure();
+    return [];
+  }
   return data.data.data.flatMap((record) => {
     const parsed = item.safeParse(record);
     return parsed.success ? [parsed.data as z.infer<T>] : [];
@@ -85,9 +90,11 @@ export async function getTourSummaries(): Promise<TourSummary[]> {
     entry.stops
       .flatMap((s) => (s.artwork ? [s.artwork] : []))
       .slice(0, COVER_CANDIDATES);
+  // The candidates come from the generated index, so this list is the same on every read.
   const read = await getArtworksByIds(TOUR_INDEX.tours.flatMap(candidates), {
     timeoutMs: 6000,
     retries: 1,
+    revalidate: REVALIDATE_REFERENCE,
   }).catch(() => null);
   const works = new Map(read?.artworks.map((a) => [a.id, a]) ?? []);
 
@@ -103,11 +110,12 @@ export async function getTourSummaries(): Promise<TourSummary[]> {
   });
 }
 
-async function readSounds(ids: readonly number[]) {
+/** Pass `revalidate` for a tour's own list of recordings, not for one work's. */
+async function readSounds(ids: readonly number[], revalidate?: number) {
   if (ids.length === 0) return new Map<number, z.infer<typeof rawSound>>();
   const json = await aicGet(
     `/mobile-sounds?ids=${ids.join(",")}&limit=100&fields=id,title,web_url,transcript`,
-    { revalidate: REVALIDATE_REFERENCE },
+    { revalidate },
   );
   return new Map(records(json, rawSound).map((sound) => [sound.id, sound]));
 }
@@ -137,7 +145,7 @@ async function readLocations(ids: readonly number[]) {
   try {
     const json = await aicGet(
       `/artworks?ids=${ids.join(",")}&limit=100&fields=id,is_on_view,gallery_id,gallery_title`,
-      { revalidate: REVALIDATE_ARTWORK, timeoutMs: 5000, retries: 1 },
+      { revalidate: REVALIDATE_LISTING, timeoutMs: 5000, retries: 1 },
     );
     for (const work of records(json, rawLocation)) {
       const name = plainTitle(work.gallery_title, 120);
@@ -152,34 +160,42 @@ async function readLocations(ids: readonly number[]) {
 
 export type TourLookup = { status: "ok"; tour: Tour } | { status: "not_found" };
 
+/** Stands for "the API has no such tour" among the requests getTour sends together. */
+const NO_TOUR = Symbol("no tour");
+
 export async function getTour(id: number): Promise<TourLookup> {
   const entry = TOUR_INDEX.tours.find((tour) => tour.id === id);
   if (!entry) return { status: "not_found" };
 
-  let json: unknown;
-  try {
-    json = await aicGet(`/tours/${id}?fields=${TOUR_FIELDS}`, {
-      revalidate: REVALIDATE_REFERENCE,
-    });
-  } catch (error) {
-    if (isAicError(error) && error.code === "not_found")
-      return { status: "not_found" };
-    throw error;
-  }
-  const raw = rawTour.safeParse((json as { data?: unknown } | null)?.data);
-  if (!raw.success) return { status: "not_found" };
-
   const artworkIds = [
     ...new Set(entry.stops.flatMap((s) => (s.artwork ? [s.artwork] : []))),
   ];
-  const [sounds, read, rooms] = await Promise.all([
-    readSounds([
-      ...(entry.intro ? [entry.intro] : []),
-      ...entry.stops.map((s) => s.sound),
-    ]),
-    getArtworksByIds(artworkIds),
+  // The index already says which recordings and works the tour has, so nothing here waits
+  // for the tour's own record. Each list is fixed per tour, and there are under twenty tours.
+  const [json, sounds, read, rooms] = await Promise.all([
+    aicGet(`/tours/${id}?fields=${TOUR_FIELDS}`, {
+      revalidate: REVALIDATE_REFERENCE,
+    }).catch((error: unknown) => {
+      if (isAicError(error) && error.code === "not_found") return NO_TOUR;
+      throw error;
+    }),
+    readSounds(
+      [
+        ...(entry.intro ? [entry.intro] : []),
+        ...entry.stops.map((s) => s.sound),
+      ],
+      REVALIDATE_REFERENCE,
+    ),
+    getArtworksByIds(artworkIds, { revalidate: REVALIDATE_REFERENCE }),
     readLocations(artworkIds),
   ]);
+  if (json === NO_TOUR) return { status: "not_found" };
+  const raw = rawTour.safeParse((json as { data?: unknown } | null)?.data);
+  if (!raw.success) {
+    // The tour is in the index, so a record that can't be read is not a real "not found".
+    reportUpstreamFailure();
+    return { status: "not_found" };
+  }
   const works = new Map(read.artworks.map((a) => [a.id, a]));
 
   const stops: TourStop[] = [];
@@ -242,7 +258,10 @@ export async function getArtworkAudio(
         : null,
     ]);
     const titles = new Map(
-      records(list, rawTour).map((t) => [t.id, plainTitle(t.title, 200)]),
+      (list === null ? [] : records(list, rawTour)).map((t) => [
+        t.id,
+        plainTitle(t.title, 200),
+      ]),
     );
     return {
       recordings: entries.flatMap((entry) => {

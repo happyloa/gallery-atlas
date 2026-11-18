@@ -6,22 +6,14 @@ import { Statement } from "@/components/discover/statement";
 import { WaysIn } from "@/components/discover/ways-in";
 import { getFeaturedArtworks } from "@/lib/artic/featured";
 import { parseSearchQuery } from "@/lib/artic/queries";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
+import { LOCALE_TAGS } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-function localeOf(lang: string): Locale {
-  return isLocale(lang) ? lang : "en";
-}
 
 export async function generateMetadata({
   params,
@@ -33,9 +25,6 @@ export async function generateMetadata({
   const locale = localeOf((await params).lang);
   const dict = getDictionary(locale);
   const { query } = parseSearchQuery(await searchParams);
-  const languages = Object.fromEntries(
-    LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/")]),
-  );
 
   const type = query.type ? dict.types[query.type] : null;
   const label = [
@@ -47,7 +36,7 @@ export async function generateMetadata({
   if (!label) {
     return {
       title: { absolute: dict.meta.homeTitle },
-      alternates: { languages },
+      alternates: languageAlternates(locale, "/"),
     };
   }
   // Search result pages are useful to visitors but thin for search engines.

@@ -31,12 +31,13 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { lang, id } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   const product = await loadProduct(id).catch(() => null);
   if (!product) return { title: dict.meta.notFoundTitle };
   return {
     title: product.title,
-    alternates: languageAlternates(`/shop/${id}`),
+    alternates: languageAlternates(locale, `/shop/${id}`),
   };
 }
 

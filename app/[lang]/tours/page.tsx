@@ -2,40 +2,31 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { ResultsError } from "@/components/discover/results-error";
+import { Credit, MUSEUM_SITE } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { describeFailure } from "@/lib/artic/error-reason";
 import { getTourSummaries } from "@/lib/artic/tours";
 import { fitClass } from "@/lib/artwork/fit";
 import type { TourSummary } from "@/lib/artwork/types";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
+import { localizePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.tours.heading,
     description: dict.tours.metaDescription,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/tours")]),
-      ),
-    },
+    alternates: languageAlternates(locale, "/tours"),
   };
 }
 
@@ -128,7 +119,14 @@ export default async function ToursPage({ params }: { params: Params }) {
             );
           })}
         </ul>
-        {tours ? <p className="mt-16 text-xs text-muted">{t.credit}</p> : null}
+        {tours ? (
+          <Credit
+            text={t.credit}
+            dict={dict}
+            href={MUSEUM_SITE}
+            className="mt-16 text-xs text-muted"
+          />
+        ) : null}
       </Container>
     </div>
   );

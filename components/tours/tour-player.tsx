@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -9,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import type { RefObject } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
 import { buttonStyles } from "@/components/ui/button";
 import { Pause, Play, SkipBack, SkipForward } from "@/components/ui/icons";
@@ -25,6 +27,7 @@ import { Transcript } from "./transcript";
 
 type Language = "zh" | "en";
 type Item = TourRecording & Partial<Omit<TourStop, keyof TourRecording>>;
+type AudioRef = RefObject<HTMLAudioElement | null>;
 
 const SPEEDS = [1, 1.25, 1.5, 0.75];
 
@@ -53,7 +56,7 @@ function writeProgress(key: string, value: number | null) {
   listeners.forEach((listener) => listener());
 }
 
-function clock(seconds: number): string {
+function formatClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const whole = Math.floor(seconds);
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
@@ -63,6 +66,233 @@ const sourceOf = (item: Item, language: Language) =>
   language === "zh" ? (item.zhSrc ?? item.src) : (item.src ?? item.zhSrc);
 const isMandarin = (item: Item, language: Language) =>
   Boolean(item.zhSrc) && (language === "zh" || !item.src);
+/** What a recording is called: the introduction has no title of its own. */
+const titleOf = (item: Item, language: Language, introduction: string) =>
+  item.number === undefined
+    ? introduction
+    : (isMandarin(item, language) && item.zhTitle) || item.title;
+
+/* The playback clock. It ticks several times a second, so it lives in the two small
+   components that show it, not in the player: a tick redraws a slider and a line of
+   text, never the list of stops or the 3D stage. */
+
+const CLOCK_EVENTS = [
+  "timeupdate",
+  "durationchange",
+  "loadedmetadata",
+  "seeking",
+  "emptied",
+] as const;
+
+interface Clock {
+  time: number;
+  duration: number;
+}
+
+function useAudioClock(audioRef: AudioRef): [Clock, (time: number) => void] {
+  const [clock, setClock] = useState<Clock>({ time: 0, duration: 0 });
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const read = () => {
+      const time = audio.currentTime;
+      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      setClock((previous) =>
+        previous.time === time && previous.duration === duration
+          ? previous
+          : { time, duration },
+      );
+    };
+    for (const type of CLOCK_EVENTS) audio.addEventListener(type, read);
+    read();
+    return () => {
+      for (const type of CLOCK_EVENTS) audio.removeEventListener(type, read);
+    };
+  }, [audioRef]);
+
+  const seek = useCallback(
+    (time: number) => {
+      // Shown at once; the element's own events follow.
+      setClock((previous) => ({ ...previous, time }));
+      if (audioRef.current) audioRef.current.currentTime = time;
+    },
+    [audioRef],
+  );
+
+  return [clock, seek];
+}
+
+function SeekBar({ audioRef, label }: { audioRef: AudioRef; label: string }) {
+  const [{ time, duration }, seek] = useAudioClock(audioRef);
+  return (
+    <input
+      type="range"
+      min={0}
+      max={duration}
+      step={1}
+      value={Math.min(time, duration)}
+      aria-label={label}
+      aria-valuetext={`${formatClock(time)} / ${formatClock(duration)}`}
+      onChange={(event) => seek(Number(event.target.value))}
+      // 44px to take hold of; the negative margin keeps the bar as slim as it was.
+      className="-my-2.5 block h-11 w-full cursor-pointer accent-[#d6a77a]"
+    />
+  );
+}
+
+function Elapsed({ audioRef }: { audioRef: AudioRef }) {
+  const [{ time, duration }] = useAudioClock(audioRef);
+  return (
+    <>
+      {formatClock(time)} / {formatClock(duration)}
+    </>
+  );
+}
+
+interface StopRowProps {
+  item: Item;
+  index: number;
+  isCurrent: boolean;
+  /** This stop is the one being heard right now. */
+  playing: boolean;
+  language: Language;
+  /** Shown as the heading of the introduction. */
+  tourHeading: string;
+  /** The page has a gallery stage, which sticks above the list on small screens. */
+  hasRoom: boolean;
+  onPlay: (index: number) => void;
+}
+
+/**
+ * One stop in the list. Memoised, with props that only change for the stop a change is
+ * about: starting, pausing or moving on redraws one or two rows, not the whole tour.
+ */
+const StopRow = memo(function StopRow({
+  item,
+  index,
+  isCurrent,
+  playing,
+  language,
+  tourHeading,
+  hasRoom,
+  onPlay,
+}: StopRowProps) {
+  const { locale, dict } = useI18n();
+  const t = dict.tours;
+  const title = titleOf(item, language, t.introduction);
+  const mandarin = isMandarin(item, language);
+  const artwork = item.artwork ?? null;
+
+  return (
+    <li
+      id={`stop-${item.soundId}`}
+      data-tour-stop=""
+      aria-current={isCurrent ? "true" : undefined}
+      className={cn(
+        "grid grid-cols-[2.75rem_5.5rem_minmax(0,1fr)] gap-x-3 gap-y-5 border-b border-line py-8 transition-colors duration-500 ease-gallery sm:grid-cols-[3rem_9rem_minmax(0,1fr)] sm:gap-x-8",
+        hasRoom
+          ? "scroll-mt-[calc(4rem+max(42svh,16rem)+1rem)] lg:scroll-mt-24 lg:grid-cols-[2.5rem_6rem_minmax(0,1fr)] lg:gap-x-5"
+          : "scroll-mt-24",
+        isCurrent && "bg-paper-deep/70 sm:-mx-4 sm:px-4",
+      )}
+    >
+      {item.number !== undefined ? (
+        <p
+          aria-hidden="true"
+          className="font-serif text-3xl leading-none text-muted tabular-nums"
+        >
+          {String(item.number).padStart(2, "0")}
+        </p>
+      ) : null}
+
+      {artwork ? (
+        <div className="flex aspect-square items-center justify-center bg-paper-deep p-2 sm:p-3">
+          <ArtworkImage
+            image={artwork.image}
+            sizes="144px"
+            reveal={0}
+            className={`${fitClass(artwork.image.aspectRatio, 1)} shadow-[0_10px_18px_-10px_rgb(34_33_31/0.55)]`}
+            fallbackClassName="h-full w-full"
+          />
+        </div>
+      ) : null}
+
+      <div className="col-span-3 min-w-0 sm:col-span-1 sm:col-start-3">
+        <p className="text-xs tracking-[0.12em] text-muted uppercase">
+          {item.number === undefined
+            ? t.introduction
+            : format(t.stop, { number: item.number })}
+        </p>
+        <h2
+          lang={mandarin && item.zhTitle ? undefined : "en"}
+          className="mt-1 font-serif text-2xl leading-snug text-balance"
+        >
+          {item.number === undefined ? tourHeading : title}
+        </h2>
+        {artwork || item.gallery || item.code ? (
+          <p className="mt-1 text-sm text-muted">
+            {artwork ? <span lang="en">{artwork.artist}</span> : null}
+            {item.gallery ? (
+              <>
+                {artwork ? " · " : null}
+                {item.gallery.id ? (
+                  <Link
+                    href={localizePath(locale, `/galleries/${item.gallery.id}`)}
+                    className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+                  >
+                    {item.gallery.name}
+                  </Link>
+                ) : (
+                  item.gallery.name
+                )}
+              </>
+            ) : null}
+            {item.code ? (
+              <>
+                {artwork || item.gallery ? " · " : null}
+                {format(t.code, { code: item.code })}
+              </>
+            ) : null}
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <button
+            type="button"
+            onClick={() => onPlay(index)}
+            aria-label={playing ? t.pause : format(t.play, { title })}
+            className={buttonStyles({
+              variant: "secondary",
+              size: "sm",
+            })}
+          >
+            {playing ? (
+              <Pause aria-hidden="true" className="size-4" />
+            ) : (
+              <Play aria-hidden="true" className="size-4" />
+            )}
+            {playing ? t.pause : t.resumePlayback}
+          </button>
+          {artwork ? (
+            <Link
+              href={localizePath(locale, `/artworks/${artwork.id}`)}
+              className="text-sm underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+            >
+              {t.viewArtwork}
+            </Link>
+          ) : null}
+        </div>
+
+        <Transcript
+          soundId={item.soundId}
+          transcript={item.transcript}
+          chinese={mandarin}
+        />
+      </div>
+    </li>
+  );
+});
 
 /** The stops of one tour, played in order through one shared audio element. */
 export function TourPlayer({ tour }: { tour: Tour }) {
@@ -90,8 +320,6 @@ export function TourPlayer({ tour }: { tour: Tour }) {
   );
   const [current, setCurrent] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [failed, setFailed] = useState(false);
 
@@ -107,14 +335,6 @@ export function TourPlayer({ tour }: { tour: Tour }) {
       ? savedIndex
       : 0;
 
-  const titleOf = useCallback(
-    (item: Item) => {
-      if (item.number === undefined) return t.introduction;
-      return (isMandarin(item, language) && item.zhTitle) || item.title;
-    },
-    [language, t.introduction],
-  );
-
   const load = useCallback(
     (index: number, lang: Language = language) => {
       const audio = audioRef.current;
@@ -122,8 +342,6 @@ export function TourPlayer({ tour }: { tour: Tour }) {
       const src = item ? sourceOf(item, lang) : null;
       if (!audio || !src) return;
       setFailed(false);
-      setTime(0);
-      setDuration(0);
       setCurrent(index);
       audio.src = src;
       audio.playbackRate = speed;
@@ -200,13 +418,30 @@ export function TourPlayer({ tour }: { tour: Tour }) {
     if (audioRef.current) audioRef.current.playbackRate = next;
   };
 
+  // A stop's own play button. The rows are handed one function that never changes, so a
+  // row is only redrawn when something about that row does; the ref holds what it should
+  // do with the player as it stands now.
+  const playStop = (index: number) => {
+    if (index === current) toggle();
+    else load(index);
+  };
+  const playStopRef = useRef(playStop);
+  useEffect(() => {
+    playStopRef.current = playStop;
+  });
+  const onPlayStop = useCallback(
+    (index: number) => playStopRef.current(index),
+    [],
+  );
+
   // Lock-screen and headset controls.
   const active = current === null ? null : (items[current] ?? null);
+  const tourHeading = tourTitle(tour, locale);
   useEffect(() => {
     if (!active || !("mediaSession" in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: titleOf(active),
-      artist: locale === "zh-tw" ? (tour.zhTitle ?? tour.title) : tour.title,
+      title: titleOf(active, language, t.introduction),
+      artist: tourHeading,
       album: "Gallery Atlas",
       artwork: active.artwork
         ? [
@@ -220,7 +455,18 @@ export function TourPlayer({ tour }: { tour: Tour }) {
     });
     navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
     navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
-  }, [active, locale, step, titleOf, tour.title, tour.zhTitle]);
+  }, [active, language, step, t.introduction, tourHeading]);
+  // Leaving the page: the tour must not linger on the lock screen, nor its buttons keep
+  // pointing at a player that is gone.
+  useEffect(
+    () => () => {
+      if (!("mediaSession" in navigator)) return;
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.setActionHandler("previoustrack", null);
+      navigator.mediaSession.setActionHandler("nexttrack", null);
+    },
+    [],
+  );
 
   const iconButton = cn(
     buttonStyles({ variant: "secondary", tone: "dark", size: "sm" }),
@@ -254,7 +500,7 @@ export function TourPlayer({ tour }: { tour: Tour }) {
                 aria-pressed={language === option}
                 onClick={() => changeLanguage(option)}
                 className={cn(
-                  "min-h-10 rounded-full border px-4 text-sm transition-colors duration-200 ease-gallery",
+                  "min-h-11 rounded-full border px-4 text-sm transition-colors duration-200 ease-gallery",
                   language === option
                     ? "border-ink bg-ink text-paper"
                     : "border-ink/25 hover:border-ink",
@@ -268,125 +514,19 @@ export function TourPlayer({ tour }: { tour: Tour }) {
       </div>
 
       <ol className="mt-10 border-t border-line">
-        {items.map((item, index) => {
-          const isCurrent = index === current;
-          const title = titleOf(item);
-          const mandarin = isMandarin(item, language);
-          const artwork = item.artwork ?? null;
-          return (
-            <li
-              key={item.soundId}
-              id={`stop-${item.soundId}`}
-              aria-current={isCurrent ? "true" : undefined}
-              className={cn(
-                "grid grid-cols-[2.75rem_5.5rem_minmax(0,1fr)] gap-x-3 gap-y-5 border-b border-line py-8 transition-colors duration-500 ease-gallery sm:grid-cols-[3rem_9rem_minmax(0,1fr)] sm:gap-x-8",
-                hasRoom
-                  ? "scroll-mt-[calc(4rem+max(42svh,16rem)+1rem)] lg:scroll-mt-24 lg:grid-cols-[2.5rem_6rem_minmax(0,1fr)] lg:gap-x-5"
-                  : "scroll-mt-24",
-                isCurrent && "bg-paper-deep/70 sm:-mx-4 sm:px-4",
-              )}
-            >
-              {item.number !== undefined ? (
-                <p
-                  aria-hidden="true"
-                  className="font-serif text-3xl leading-none text-muted tabular-nums"
-                >
-                  {String(item.number).padStart(2, "0")}
-                </p>
-              ) : null}
-
-              {artwork ? (
-                <div className="flex aspect-square items-center justify-center bg-paper-deep p-2 sm:p-3">
-                  <ArtworkImage
-                    image={artwork.image}
-                    sizes="144px"
-                    reveal={0}
-                    className={`${fitClass(artwork.image.aspectRatio, 1)} shadow-[0_10px_18px_-10px_rgb(34_33_31/0.55)]`}
-                    fallbackClassName="h-full w-full"
-                  />
-                </div>
-              ) : null}
-
-              <div className="col-span-3 min-w-0 sm:col-span-1 sm:col-start-3">
-                <p className="text-xs tracking-[0.12em] text-muted uppercase">
-                  {item.number === undefined
-                    ? t.introduction
-                    : format(t.stop, { number: item.number })}
-                </p>
-                <h2
-                  lang={mandarin && item.zhTitle ? undefined : "en"}
-                  className="mt-1 font-serif text-2xl leading-snug text-balance"
-                >
-                  {item.number === undefined ? tourTitle(tour, locale) : title}
-                </h2>
-                {artwork || item.gallery || item.code ? (
-                  <p className="mt-1 text-sm text-muted">
-                    {artwork ? <span lang="en">{artwork.artist}</span> : null}
-                    {item.gallery ? (
-                      <>
-                        {artwork ? " · " : null}
-                        {item.gallery.id ? (
-                          <Link
-                            href={localizePath(
-                              locale,
-                              `/galleries/${item.gallery.id}`,
-                            )}
-                            className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
-                          >
-                            {item.gallery.name}
-                          </Link>
-                        ) : (
-                          item.gallery.name
-                        )}
-                      </>
-                    ) : null}
-                    {item.code ? (
-                      <>
-                        {artwork || item.gallery ? " · " : null}
-                        {format(t.code, { code: item.code })}
-                      </>
-                    ) : null}
-                  </p>
-                ) : null}
-
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-                  <button
-                    type="button"
-                    onClick={() => (isCurrent ? toggle() : load(index))}
-                    aria-label={
-                      isCurrent && playing ? t.pause : format(t.play, { title })
-                    }
-                    className={buttonStyles({
-                      variant: "secondary",
-                      size: "sm",
-                    })}
-                  >
-                    {isCurrent && playing ? (
-                      <Pause aria-hidden="true" className="size-4" />
-                    ) : (
-                      <Play aria-hidden="true" className="size-4" />
-                    )}
-                    {isCurrent && playing ? t.pause : t.resumePlayback}
-                  </button>
-                  {artwork ? (
-                    <Link
-                      href={localizePath(locale, `/artworks/${artwork.id}`)}
-                      className="text-sm underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
-                    >
-                      {t.viewArtwork}
-                    </Link>
-                  ) : null}
-                </div>
-
-                <Transcript
-                  soundId={item.soundId}
-                  transcript={item.transcript}
-                  chinese={mandarin}
-                />
-              </div>
-            </li>
-          );
-        })}
+        {items.map((item, index) => (
+          <StopRow
+            key={item.soundId}
+            item={item}
+            index={index}
+            isCurrent={index === current}
+            playing={index === current && playing}
+            language={language}
+            tourHeading={tourHeading}
+            hasRoom={hasRoom}
+            onPlay={onPlayStop}
+          />
+        ))}
       </ol>
     </div>
   );
@@ -407,8 +547,8 @@ export function TourPlayer({ tour }: { tour: Tour }) {
                   : format(t.stop, { number: stageItem.number }),
               title:
                 stageItem.number === undefined
-                  ? tourTitle(tour, locale)
-                  : titleOf(stageItem),
+                  ? tourHeading
+                  : titleOf(stageItem, language, t.introduction),
               titleInEnglish:
                 stageItem.number === undefined
                   ? locale === "zh-tw" && !tour.zhTitle
@@ -437,44 +577,31 @@ export function TourPlayer({ tour }: { tour: Tour }) {
           if (current !== null) setFailed(true);
           setPlaying(false);
         }}
-        onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
       />
 
       {active ? (
         <section
           aria-label={t.heading}
+          data-tone="dark"
+          // Stays in reach while the stage is full screen (see TourStage).
+          data-tour-keep=""
           className={cn(
             "fixed inset-x-0 bottom-0 border-t border-white/10 bg-gallery text-gallery-text",
             fullScreen ? "z-[60]" : "z-30",
           )}
         >
           <div className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-8 lg:px-12">
-            <input
-              type="range"
-              min={0}
-              max={duration || 0}
-              step={1}
-              value={Math.min(time, duration || 0)}
-              aria-label={t.seek}
-              aria-valuetext={`${clock(time)} / ${clock(duration)}`}
-              onChange={(event) => {
-                const value = Number(event.target.value);
-                setTime(value);
-                if (audioRef.current) audioRef.current.currentTime = value;
-              }}
-              className="block h-6 w-full cursor-pointer accent-[#d6a77a]"
-            />
+            <SeekBar audioRef={audioRef} label={t.seek} />
             <div className="mt-1 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p
                   lang={isMandarin(active, language) ? undefined : "en"}
                   className="truncate font-serif text-lg"
                 >
-                  {titleOf(active)}
+                  {titleOf(active, language, t.introduction)}
                 </p>
                 <p className="text-xs text-gallery-muted tabular-nums">
-                  {clock(time)} / {clock(duration)}
+                  <Elapsed audioRef={audioRef} />
                   {failed ? (
                     <span role="alert" className="ml-3 text-[#f1c9a8]">
                       {t.audioError}

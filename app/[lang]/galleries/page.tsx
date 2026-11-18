@@ -6,35 +6,25 @@ import { Container } from "@/components/ui/container";
 import { describeFailure } from "@/lib/artic/error-reason";
 import { galleriesByFloor, getGalleryOverview } from "@/lib/artic/museum";
 import type { GalleryListing } from "@/lib/artic/museum";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
+import { LOCALE_TAGS, localizePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { formatCount } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ lang: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.galleries.heading,
     description: dict.galleries.metaDescription,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/galleries")]),
-      ),
-    },
+    alternates: languageAlternates(locale, "/galleries"),
   };
 }
 

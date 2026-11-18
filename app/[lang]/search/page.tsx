@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
   FilterChips,
@@ -16,6 +17,7 @@ import { Container } from "@/components/ui/container";
 import { ArrowRight } from "@/components/ui/icons";
 import { searchHref } from "@/lib/artic/search-url";
 import {
+  MAX_SEARCH_PAGE,
   SEARCH_TAB_NAMES,
   SEARCH_TABS,
   searchSite,
@@ -42,11 +44,12 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.siteSearch.heading,
     description: dict.siteSearch.metaDescription,
-    alternates: languageAlternates("/search"),
+    alternates: languageAlternates(locale, "/search"),
     robots: { index: false },
   };
 }
@@ -63,9 +66,14 @@ export default async function SearchPage({
   const t = dict.siteSearch;
   const query = await searchParams;
   const q = keywordParam(query);
-  const page = pageParam(query);
+  const page = pageParam(query, MAX_SEARCH_PAGE);
+  // Past the last page the museum's search can show: no such page, and no request for it.
+  if (page === null) notFound();
   const rawTab = stringParam(query, "tab") ?? "all";
-  const tab: SearchTab = rawTab in SEARCH_TABS ? (rawTab as SearchTab) : "all";
+  // Own keys only: `in` would also accept "toString" and the like.
+  const tab: SearchTab = Object.hasOwn(SEARCH_TABS, rawTab)
+    ? (rawTab as SearchTab)
+    : "all";
 
   const base = localizePath(locale, "/search");
   const result = q ? await attempt(() => searchSite(q, tab, page)) : null;

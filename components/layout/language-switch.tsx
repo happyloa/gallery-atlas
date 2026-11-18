@@ -29,7 +29,7 @@ function SwitchLink({ query, overHero }: { query: string; overHero: boolean }) {
       }}
       hrefLang={LOCALE_TAGS[otherLocale]}
       className={cn(
-        "inline-flex min-h-9 items-center rounded-full border px-3 text-[0.8125rem] transition-colors duration-200 ease-gallery",
+        "inline-flex min-h-11 items-center rounded-full border px-3.5 text-[0.8125rem] transition-colors duration-200 ease-gallery",
         overHero
           ? "border-gallery-text/35 hover:border-gallery-text"
           : "border-ink/25 hover:border-ink",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import { EventDays } from "@/components/library/event-rows";
 import {
@@ -28,14 +29,22 @@ const MAX_PROGRAM_CHIPS = 12;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
+  const query = await searchParams;
+  const program = stringParam(query, "program");
   return {
     title: dict.events.heading,
     description: dict.events.metaDescription,
-    alternates: languageAlternates("/events"),
+    alternates: languageAlternates(locale, "/events", {
+      program: program && /^\d{1,4}$/.test(program) ? Number(program) : null,
+      page: pageParam(query) ?? 1,
+    }),
   };
 }
 
@@ -51,6 +60,8 @@ export default async function EventsPage({
   const t = dict.events;
   const query = await searchParams;
   const page = pageParam(query);
+  // Past the last page the museum's search can show: no such page, and no request for it.
+  if (page === null) notFound();
   const rawProgram = stringParam(query, "program");
   const program =
     rawProgram && /^\d{1,4}$/.test(rawProgram) ? Number(rawProgram) : null;

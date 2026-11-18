@@ -84,7 +84,7 @@ export function KeywordForm({
           defaultValue={value}
           placeholder={placeholder}
           maxLength={100}
-          className="h-11 w-full bg-transparent text-lg outline-none placeholder:text-muted"
+          className="h-11 w-full bg-transparent text-lg placeholder:text-muted focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4"
         />
       </label>
       {Object.entries(hidden).map(([name, val]) =>
@@ -128,7 +128,7 @@ export function FilterChips({
               aria-current={item.active ? "true" : undefined}
               lang={item.lang}
               className={cn(
-                "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-[0.8125rem] transition-colors duration-200 ease-gallery",
+                "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-[0.8125rem] transition-colors duration-200 ease-gallery",
                 item.active
                   ? "border-ink bg-ink text-paper"
                   : "border-ink/20 text-ink hover:border-ink",
@@ -202,6 +202,92 @@ export function OutLink({
       <ArrowUpRight aria-hidden="true" className="size-4 shrink-0" />
       <span className="sr-only">{dict.site.opensInNewTab}</span>
     </a>
+  );
+}
+
+/** Where a credit links back to when the material has no page of its own to point at. */
+export const MUSEUM_SITE = "https://www.artic.edu";
+
+/** Licences named in credit lines, each linked to its own terms wherever it is mentioned. */
+const LICENCES: Record<string, string> = {
+  "CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/",
+  "ODC Attribution License": "https://opendatacommons.org/licenses/by/1-0/",
+};
+/** Splits a credit on the licence names, keeping them. */
+const LICENCE_NAMES = /(CC BY 4\.0|ODC Attribution License)/;
+
+const creditLinkClass =
+  "underline decoration-current/40 underline-offset-2 hover:decoration-current";
+
+/** Text in which any licence named is a link to that licence. Renders no element of its own. */
+export function LicensedText({
+  text,
+  dict,
+}: {
+  text: string;
+  dict: Dictionary;
+}) {
+  return text.split(LICENCE_NAMES).map((part, index) => {
+    const href = Object.hasOwn(LICENCES, part) ? LICENCES[part] : undefined;
+    return href ? (
+      <a
+        key={index}
+        href={href}
+        target="_blank"
+        rel={`license ${EXTERNAL_REL}`}
+        lang="en"
+        className={creditLinkClass}
+      >
+        {part}
+        <span className="sr-only">{dict.site.opensInNewTab}</span>
+      </a>
+    ) : (
+      part
+    );
+  });
+}
+
+/**
+ * A credit line. Any licence it names becomes a link to that licence, and `href` adds a
+ * link back to where the material comes from.
+ */
+export function Credit({
+  text,
+  dict,
+  href,
+  label,
+  className = "text-xs text-muted",
+}: {
+  text: string;
+  dict: Dictionary;
+  /** The source on the museum's site. */
+  href?: string | null;
+  /** Link text for `href`; the museum's address by default. */
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <p className={className}>
+      <LicensedText text={text} dict={dict} />
+      {href ? (
+        <>
+          {" "}
+          <a
+            href={href}
+            target="_blank"
+            rel={EXTERNAL_REL}
+            className={`${creditLinkClass} whitespace-nowrap`}
+          >
+            {label ?? dict.common.museumSite}
+            <ArrowUpRight
+              aria-hidden="true"
+              className="ml-0.5 inline size-3 align-[-0.1em]"
+            />
+            <span className="sr-only">{dict.site.opensInNewTab}</span>
+          </a>
+        </>
+      ) : null}
+    </p>
   );
 }
 

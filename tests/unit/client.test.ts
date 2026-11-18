@@ -3,10 +3,14 @@ import {
   aicGet,
   AicError,
   aicUserAgent,
+  invalidResponse,
   isAicError,
+  isStableFailure,
   parseRetryAfter,
+  pastSearchWindow,
   USER_AGENT,
 } from "@/lib/artic/client";
+import { onUpstreamFailure } from "@/lib/render-health";
 import { fastRetry, jsonResponse } from "../fixtures/aic";
 
 function fetchSequence(...responses: Array<Response | Error>) {
@@ -194,6 +198,62 @@ describe("aicGet", () => {
     const error = await caught(aicGet("/x", { fetchImpl, ...fastRetry }));
     expect(error.code).toBe("invalid_response");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("reporting a failed render", () => {
+  /** How often the Worker was told the page is incomplete while `request` ran. */
+  async function reports(request: () => Promise<unknown>): Promise<number> {
+    const listener = vi.fn();
+    onUpstreamFailure(listener);
+    await request().catch(() => null);
+    return listener.mock.calls.length;
+  }
+  const answering = (status: number) =>
+    aicGet("/x", {
+      fetchImpl: fetchSequence(new Response("{}", { status })),
+      retries: 0,
+      ...fastRetry,
+    });
+
+  it("reports failures that may be gone on the next try", async () => {
+    for (const status of [500, 503, 429, 403])
+      expect(await reports(() => answering(status)), String(status)).toBe(1);
+    expect(
+      await reports(() =>
+        aicGet("/x", {
+          fetchImpl: fetchSequence(new TypeError("fetch failed")),
+          retries: 0,
+          ...fastRetry,
+        }),
+      ),
+    ).toBe(1);
+  });
+
+  it("does not report an answer that would be the same next time", async () => {
+    // A missing record, and a request the API refuses as malformed.
+    for (const status of [404, 400, 422])
+      expect(await reports(() => answering(status)), String(status)).toBe(0);
+    expect(await reports(() => aicGet("//evil.example/x"))).toBe(0);
+    expect(isStableFailure(new AicError("bad_request", "x"))).toBe(true);
+    expect(isStableFailure(new AicError("upstream", "x", 403))).toBe(false);
+    expect(isStableFailure(new Error("x"))).toBe(false);
+  });
+
+  it("reports a response that arrived but cannot be used", async () => {
+    expect(
+      await reports(async () => {
+        throw invalidResponse("search");
+      }),
+    ).toBe(1);
+    expect(invalidResponse("search")).toMatchObject({
+      code: "invalid_response",
+      retryable: true,
+    });
+    // Asking past the search window is the caller's mistake, not the museum's.
+    expect(await reports(async () => Promise.reject(pastSearchWindow()))).toBe(
+      0,
+    );
   });
 });
 

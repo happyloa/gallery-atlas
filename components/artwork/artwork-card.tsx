@@ -31,6 +31,8 @@ export function ArtworkCard({
   /** Uncover the image when it scrolls into view, after this many milliseconds. */
   revealDelay?: number;
 }) {
+  // The museum's records are English; say so on a page in another language.
+  const dataLang = locale === "en" ? undefined : "en";
   return (
     <article className="group relative">
       <div className="flex aspect-[4/5] items-end justify-center">
@@ -43,7 +45,10 @@ export function ArtworkCard({
         />
       </div>
       <div className="mt-5 border-t border-line pt-4">
-        <h3 className="font-serif text-lg leading-snug text-ink italic">
+        <h3
+          lang={dataLang}
+          className="font-serif text-lg leading-snug text-ink italic"
+        >
           <Link
             href={localizePath(locale, `/artworks/${artwork.id}`)}
             className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-accent"
@@ -51,9 +56,13 @@ export function ArtworkCard({
             {artwork.title}
           </Link>
         </h3>
-        <p className="mt-1 text-sm text-ink">{artwork.artist}</p>
+        <p lang={dataLang} className="mt-1 text-sm text-ink">
+          {artwork.artist}
+        </p>
         {artwork.dateDisplay ? (
-          <p className="mt-0.5 text-sm text-muted">{artwork.dateDisplay}</p>
+          <p lang={dataLang} className="mt-0.5 text-sm text-muted">
+            {artwork.dateDisplay}
+          </p>
         ) : null}
       </div>
       {action ? (

@@ -23,6 +23,11 @@ export interface ArtworkImageProps {
    * delay, for staggered rows; `false` (the default) shows it at once.
    */
   reveal?: number | false;
+  /**
+   * The alt text was written in the page's language. By default it is the museum's own
+   * description, which is English, and is marked as such on a Chinese page.
+   */
+  translatedAlt?: boolean;
 }
 
 export function ArtworkImage({
@@ -32,8 +37,9 @@ export function ArtworkImage({
   className,
   fallbackClassName,
   reveal = false,
+  translatedAlt = false,
 }: ArtworkImageProps) {
-  const { dict } = useI18n();
+  const { locale, dict } = useI18n();
   const [failed, setFailed] = useState(false);
   const [shown, setShown] = useState(false);
   const nodeRef = useRef<HTMLImageElement | null>(null);
@@ -80,6 +86,7 @@ export function ArtworkImage({
       srcSet={image.srcSet}
       sizes={sizes}
       alt={image.alt}
+      lang={image.alt && !translatedAlt && locale !== "en" ? "en" : undefined}
       width={BASE_WIDTH}
       height={height}
       loading={priority ? "eager" : "lazy"}
@@ -100,7 +107,9 @@ export function ArtworkImage({
                 backgroundSize: "100% 100%",
               }
             : {}),
-          ...(revealing && reveal > 0 ? { "--reveal-delay": `${reveal}ms` } : {}),
+          ...(revealing && reveal > 0
+            ? { "--reveal-delay": `${reveal}ms` }
+            : {}),
         } as CSSProperties
       }
     />

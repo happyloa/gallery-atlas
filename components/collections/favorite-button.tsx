@@ -69,7 +69,7 @@ export function FavoriteButton({
           "inline-flex items-center justify-center gap-2 transition-colors duration-200 ease-gallery",
           variant === "icon"
             ? cn(
-                "size-10 rounded-full shadow-sm backdrop-blur",
+                "size-11 rounded-full shadow-sm backdrop-blur",
                 saved
                   ? "bg-ink text-paper"
                   : "bg-paper/90 text-ink hover:bg-paper",

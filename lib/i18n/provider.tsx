@@ -3,11 +3,12 @@
 import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import type { Locale } from "./config";
-import type { Dictionary } from "./dictionaries";
+import type { ClientDictionary } from "./dictionaries";
 
 interface I18nValue {
   locale: Locale;
-  dict: Dictionary;
+  /** Only the sections client components use; see CLIENT_SECTIONS. */
+  dict: ClientDictionary;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);

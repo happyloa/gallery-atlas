@@ -1,7 +1,8 @@
 /** Search across the museum's records, through the API's multi-resource endpoint. */
 import { z } from "zod";
-import { aicGet } from "./client";
-import { REVALIDATE_SEARCH } from "./config";
+import { reportUpstreamFailure } from "@/lib/render-health";
+import { aicGet, pastSearchWindow } from "./client";
+import { maxPageFor } from "./config";
 import { isLibraryKind, KIND_OF_RESOURCE } from "./library";
 import { plainTitle } from "./museum";
 import {
@@ -133,11 +134,16 @@ export interface SiteSearchResult extends RecordPage<SearchHit> {
   tabCounts: Record<SearchTab, number>;
 }
 
+/** The last page of hits inside the API's search window. */
+export const MAX_SEARCH_PAGE = maxPageFor(PAGE_SIZE);
+
+/** Always a keyword search, so neither request is kept in the data cache. */
 export async function searchSite(
   keyword: string,
   tab: SearchTab,
   page: number,
 ): Promise<SiteSearchResult> {
+  if (page > MAX_SEARCH_PAGE) throw pastSearchWindow();
   const base = { keyword, keywordFields: KEYWORD_FIELDS };
   const resources = (SEARCH_TABS[tab] ?? EVERY_RESOURCE).join(",");
   const [resultsJson, countsJson] = await Promise.all([
@@ -151,7 +157,6 @@ export async function searchSite(
         }),
         resources,
       }),
-      { revalidate: REVALIDATE_SEARCH },
     ),
     aicGet(
       paramsPath("/search", {
@@ -162,15 +167,15 @@ export async function searchSite(
         }),
         resources: EVERY_RESOURCE.join(","),
       }),
-      { revalidate: REVALIDATE_SEARCH },
     ),
   ]);
 
   const results = toRecordPage(resultsJson, rawHit, PAGE_SIZE, page);
-  const buckets =
-    countsSchema.safeParse(
-      toRecordPage(countsJson, z.unknown(), 0).aggregations,
-    ).data?.kinds.buckets ?? [];
+  const counted = countsSchema.safeParse(
+    toRecordPage(countsJson, z.unknown(), 0).aggregations,
+  );
+  if (!counted.success) reportUpstreamFailure();
+  const buckets = counted.data?.kinds.buckets ?? [];
   const perResource = new Map(buckets.map((b) => [b.key, b.doc_count]));
   const countFor = (names: readonly string[]) =>
     names.reduce((sum, name) => sum + (perResource.get(name) ?? 0), 0);

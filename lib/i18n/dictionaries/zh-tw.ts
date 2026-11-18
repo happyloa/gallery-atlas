@@ -1,6 +1,6 @@
 import type { Dictionary } from "./en";
 
-/** 繁體中文（台灣）介面文字。作品標題、作者等館方資料只有英文，維持原文。 */
+/** 繁體中文（台灣）介面文字。作品標題、藝術家等館方資料只有英文，維持原文。 */
 export const zhTw: Dictionary = {
   meta: {
     homeTitle: "Gallery Atlas · 公有領域藝術",
@@ -63,7 +63,7 @@ export const zhTw: Dictionary = {
     eyebrow: "館藏",
     heading: "探索館藏",
     searchLabel: "搜尋作品",
-    searchPlaceholder: "用英文搜尋作者、作品名稱或主題",
+    searchPlaceholder: "用英文搜尋藝術家、作品名稱或主題",
     filterLabel: "依類型篩選",
     allTypes: "全部",
     clearFilters: "清除條件",
@@ -74,10 +74,10 @@ export const zhTw: Dictionary = {
     summaryQuery: "符合「{q}」的作品共 {count} 件",
     summaryTypeQuery: "符合「{q}」的{type}作品共 {count} 件",
     showing: " · 第 {from}–{to} 件",
-    limited: "只能瀏覽前 {count} 筆。",
+    limited: "只能瀏覽前 {count} 件。",
     emptyQueryTitle: "館藏裡沒有符合「{q}」的作品。",
     emptyTitle: "這裡目前沒有作品。",
-    emptyHint: "試試英文關鍵字、作者的姓，或減少篩選條件。",
+    emptyHint: "試試英文關鍵字、藝術家的姓，或減少篩選條件。",
     pastEndEyebrow: "超出範圍",
     pageOutOfRangeTitle: "搜尋結果最多到第 {max} 頁。",
     pageOutOfRangeBody: "請縮小搜尋範圍。",
@@ -205,7 +205,7 @@ export const zhTw: Dictionary = {
     introduction: "導覽介紹",
     stop: "第 {number} 站",
     code: "館內語音編號 {code}",
-    play: "播放{title}",
+    play: "播放 {title}",
     pause: "暫停",
     resumePlayback: "播放",
     previous: "上一站",
@@ -272,7 +272,7 @@ export const zhTw: Dictionary = {
   },
   detail: {
     back: "回到探索",
-    artist: "作者",
+    artist: "藝術家",
     date: "年代",
     type: "類型",
     medium: "媒材",
@@ -280,7 +280,6 @@ export const zhTw: Dictionary = {
     origin: "產地",
     creditLine: "館藏來源",
     viewAtMuseum: "到芝加哥藝術博物館網站查看",
-    viewFullImage: "檢視完整圖片",
     aboutWork: "作品說明",
     descriptionCredit: "說明：芝加哥藝術博物館，CC BY 4.0。",
     imageCredit: "圖片：芝加哥藝術博物館，公有領域。",
@@ -311,7 +310,7 @@ export const zhTw: Dictionary = {
     restrictedBody: "這件作品不是公有領域，或沒有可展示的圖片。",
     listen: "語音",
     audioStop: "語音導覽第 {stop} 站",
-    audioCredit: "音檔來自芝加哥藝術博物館。",
+    audioCredit: "音檔：© 芝加哥藝術博物館。",
     furtherReading: "延伸閱讀",
     readingKinds: {
       article: "文章",
@@ -320,6 +319,7 @@ export const zhTw: Dictionary = {
     moreFromPlace: "看更多來自{place}的作品",
   },
   zoom: {
+    open: "檢視完整圖片",
     dialogLabel: "完整圖片：{title}",
     close: "關閉",
     zoomIn: "放大",
@@ -351,7 +351,7 @@ export const zhTw: Dictionary = {
     title: "我的收藏",
     description: "你收藏的作品和自訂展覽，存在這個瀏覽器裡。",
     emptyTitle: "你的牆上還空著。",
-    emptyBody: "收藏的作品和展覽會放在這裡，只存在這個瀏覽器。",
+    emptyBody: "收藏的作品和展覽會放在這裡。",
     favoritesHeading: "收藏的作品",
     favoritesCount: "共收藏 {count} 件作品",
     favoritesCountOne: "共收藏 1 件作品",
@@ -365,7 +365,6 @@ export const zhTw: Dictionary = {
   },
   exhibitions: {
     heading: "我的展覽",
-    intro: "把作品組成自己的展覽。",
     newLabel: "新展覽名稱",
     newPlaceholder: "例如：夜晚的風景",
     create: "建立展覽",
@@ -380,7 +379,6 @@ export const zhTw: Dictionary = {
     addToExhibition: "加入展覽",
     addLabel: "將「{title}」加入展覽",
     pickerTitle: "加入展覽",
-    pickerHint: "可複選。",
     pickerEmpty: "還沒有展覽。",
     createAndAdd: "建立並加入",
     added: "已加入「{title}」。",

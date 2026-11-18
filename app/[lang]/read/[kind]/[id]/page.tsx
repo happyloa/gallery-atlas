@@ -33,7 +33,8 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { lang, kind, id } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   const entry = await loadEntry(kind, id).catch(() => null);
   if (!entry) return { title: dict.meta.notFoundTitle };
   const opening = entry.body[0]?.paragraphs[0]
@@ -43,7 +44,7 @@ export async function generateMetadata({
   return {
     title: entry.title,
     description: opening,
-    alternates: languageAlternates(`/read/${kind}/${id}`),
+    alternates: languageAlternates(locale, `/read/${kind}/${id}`),
   };
 }
 

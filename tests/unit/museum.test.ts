@@ -7,6 +7,7 @@ import {
   getRandomArtworkId,
   getSounds,
   getSuggestions,
+  getWorkOfTheDay,
   getWorkOfTheDayId,
   museumUrl,
   plainTitle,
@@ -27,7 +28,12 @@ import { formatCount } from "@/lib/i18n/format";
 import { parseDescription } from "@/lib/artic/description";
 import { TOUR_INDEX } from "@/lib/artic/tour-index";
 import { getArtworkAudio, getTour } from "@/lib/artic/tours";
-import { jsonResponse, listResponse, rawArtwork } from "../fixtures/aic";
+import {
+  jsonResponse,
+  listResponse,
+  rawArtwork,
+  searchResponse,
+} from "../fixtures/aic";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -190,6 +196,33 @@ describe("suggestions, random and daily picks", () => {
       vi.fn(async () => jsonResponse({}, { status: 500 })),
     );
     await expect(getWorkOfTheDayId(new Date())).resolves.toBeNull();
+    await expect(getWorkOfTheDay(new Date())).resolves.toBeNull();
+  });
+
+  it("reads the daily work in the request that picks it", async () => {
+    const asked: string[] = [];
+    const fetchMock = vi.fn(async (url: string) => {
+      const params = JSON.parse(
+        decodeURIComponent(String(url).split("params=")[1] ?? "{}"),
+      ) as { limit?: number; page?: number; fields?: string };
+      if (params.limit === 0)
+        return jsonResponse({ pagination: { total: 228 }, data: [] });
+      asked.push(params.fields ?? "");
+      return jsonResponse(
+        searchResponse([rawArtwork({ id: 1000 + (params.page ?? 0) })], {
+          limit: 1,
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const date = new Date("2026-11-18T12:00:00Z");
+    const work = await getWorkOfTheDay(date);
+    // One request for how many there are, one for the work: none for the record alone.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain("image_id");
+    expect(work?.id).toBe(await getWorkOfTheDayId(date));
+    expect(work?.title).toBe("A Sunday on La Grande Jatte — 1884");
   });
 });
 
@@ -337,8 +370,20 @@ describe("gallery overview", () => {
           data:
             page === 1
               ? [
-                  { id: 7, title: "Gallery 240", number: "240", floor: "2", is_closed: false },
-                  { id: 8, title: "Gallery 125", number: "125", floor: "1", is_closed: true },
+                  {
+                    id: 7,
+                    title: "Gallery 240",
+                    number: "240",
+                    floor: "2",
+                    is_closed: false,
+                  },
+                  {
+                    id: 8,
+                    title: "Gallery 125",
+                    number: "125",
+                    floor: "1",
+                    is_closed: true,
+                  },
                 ]
               : [],
         });
@@ -346,8 +391,22 @@ describe("gallery overview", () => {
     );
     const galleries = await getGalleryOverview();
     expect(galleries).toEqual([
-      { id: 7, name: "Gallery 240", number: "240", floor: "2", isClosed: false, works: 13 },
-      { id: 8, name: "Gallery 125", number: "125", floor: "1", isClosed: true, works: 0 },
+      {
+        id: 7,
+        name: "Gallery 240",
+        number: "240",
+        floor: "2",
+        isClosed: false,
+        works: 13,
+      },
+      {
+        id: 8,
+        name: "Gallery 125",
+        number: "125",
+        floor: "1",
+        isClosed: true,
+        works: 0,
+      },
     ]);
   });
 });
@@ -362,20 +421,34 @@ describe("audio tours", () => {
         const url = decodeURIComponent(String(input));
         if (url.includes("/mobile-sounds"))
           return jsonResponse({
-            data: (/ids=([\d,]+)/.exec(url)?.[1] ?? "").split(",").map((id) => ({
-              id: Number(id),
-              title: `T53_${id}_file`,
-              web_url: `https://www.artic.edu/mobile/audio/${id}.mp3`,
-              transcript: "<p>NARRATOR: One.</p><p>Two.</p>",
-            })),
+            data: (/ids=([\d,]+)/.exec(url)?.[1] ?? "")
+              .split(",")
+              .map((id) => ({
+                id: Number(id),
+                title: `T53_${id}_file`,
+                web_url: `https://www.artic.edu/mobile/audio/${id}.mp3`,
+                transcript: "<p>NARRATOR: One.</p><p>Two.</p>",
+              })),
           });
         if (url.includes("/tours/"))
           return jsonResponse({
-            data: { id: 3906, title: " Porcelain ", description: "<p>About.</p>", intro: "<p>Hello.</p>" },
+            data: {
+              id: 3906,
+              title: " Porcelain ",
+              description: "<p>About.</p>",
+              intro: "<p>Hello.</p>",
+            },
           });
         if (url.includes("is_on_view"))
           return jsonResponse({
-            data: [{ id: 75903, is_on_view: true, gallery_id: 7, gallery_title: "Gallery 134" }],
+            data: [
+              {
+                id: 75903,
+                is_on_view: true,
+                gallery_id: 7,
+                gallery_title: "Gallery 134",
+              },
+            ],
           });
         return jsonResponse(listResponse([rawArtwork({ id: 75903 })]));
       }),
@@ -423,21 +496,71 @@ describe("audio tours", () => {
   });
 
   it("never plays a recording hosted somewhere else", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        jsonResponse({
-          data: [{ id: 1, title: "x", web_url: "https://evil.example/a.mp3", transcript: null }],
-        }),
+    // La Grande Jatte has commentary in the tour index, so its recordings are really read.
+    const commentary = TOUR_INDEX.commentary[27992] ?? [];
+    expect(commentary.length).toBeGreaterThan(0);
+    const fetchMock = vi.fn(async (input: string) => {
+      const url = decodeURIComponent(String(input));
+      if (!url.includes("/mobile-sounds")) return jsonResponse({ data: [] });
+      return jsonResponse({
+        data: (/ids=([\d,]+)/.exec(url)?.[1] ?? "").split(",").map((id) => ({
+          id: Number(id),
+          title: "x",
+          web_url: `https://evil.example/${id}.mp3`,
+          transcript: null,
+        })),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const audio = await getArtworkAudio(27992);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("/mobile-sounds"),
       ),
+    ).toBe(true);
+    for (const recording of audio.recordings) {
+      expect(recording.src).toBeNull();
+      expect(recording.zhSrc ?? "").not.toContain("evil.example");
+    }
+    // A stop is kept only for the Mandarin file the index itself names; the rest are dropped.
+    expect(audio.recordings.map((recording) => recording.soundId)).toEqual(
+      commentary
+        .filter((entry) => TOUR_INDEX.sounds[entry.sound])
+        .map((entry) => entry.sound),
     );
-    const audio = await getArtworkAudio(999_999_999);
-    expect(audio).toEqual({ recordings: [], tours: [] });
     expect(museumUrl("https://evil.example/a.mp3")).toBeNull();
   });
 
+  it("asks for a tour's record, recordings, works and rooms at the same time", async () => {
+    const started: string[] = [];
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const url = decodeURIComponent(String(input));
+        started.push(url);
+        await held;
+        if (url.includes("/tours/"))
+          return jsonResponse({ data: { id: 3906, title: "Porcelain" } });
+        if (url.includes("/mobile-sounds") || url.includes("is_on_view"))
+          return jsonResponse({ data: [] });
+        return jsonResponse(listResponse([]));
+      }),
+    );
+    const pending = getTour(3906);
+    await vi.waitFor(() => expect(started).toHaveLength(4));
+    release();
+    await expect(pending).resolves.toMatchObject({ status: "ok" });
+  });
+
   it("keeps long transcripts whole", () => {
-    const html = Array.from({ length: 60 }, (_, i) => `<p>Line ${i}</p>`).join("");
+    const html = Array.from({ length: 60 }, (_, i) => `<p>Line ${i}</p>`).join(
+      "",
+    );
     expect(parseDescription(html)).toHaveLength(20);
     expect(parseDescription(html, { maxParagraphs: 400 })).toHaveLength(60);
   });

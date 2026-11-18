@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import { REVALIDATE_REFERENCE } from "@/lib/artic/config";
 import { getProducts, toProduct } from "@/lib/artic/shop";
 import {
   durationMinutes,
@@ -14,18 +16,24 @@ import { toMediaItem } from "@/lib/artic/media";
 import {
   articUrl,
   cleanFileTitle,
+  copyExcerpt,
   excerpt,
   imgixUrl,
   parseCatalogueEntry,
   parseCopy,
   parseRecordId,
   readableSlug,
+  readByIds,
+  readRecord,
   searchParamsFor,
+  searchRecords,
+  toRecordPage,
   webUrl,
 } from "@/lib/artic/records";
 import { toSearchHit } from "@/lib/artic/site-search";
 import { formatClock } from "@/lib/i18n/museum-time";
 import { museumEn, museumZhTw } from "@/lib/i18n/dictionaries/museum";
+import { jsonResponse } from "../fixtures/aic";
 
 const text = (paragraphs: { text: string }[][] | null) =>
   paragraphs?.map((runs) => runs.map((run) => run.text).join(""));
@@ -102,6 +110,99 @@ describe("titles", () => {
     expect(cut?.endsWith("…")).toBe(true);
     expect(cut?.length).toBeLessThanOrEqual(41);
     expect(excerpt(null)).toBeNull();
+  });
+});
+
+describe("copyExcerpt", () => {
+  it("gives the same opening lines as parsing the whole text", () => {
+    const html = "<h1>Title</h1><p>Body with <em>emphasis</em> and more.</p>";
+    expect(copyExcerpt(html)).toBe(excerpt(parseCopy(html)));
+    expect(copyExcerpt(html)).toBe("Body with emphasis and more.");
+    expect(copyExcerpt(" One.   Two.")).toBe("One.");
+    expect(copyExcerpt(null)).toBeNull();
+    expect(copyExcerpt("   ")).toBeNull();
+  });
+
+  it("reads only the start of a long article", () => {
+    const article = `<p>Opening line.</p>${"<p>More of the article.</p>".repeat(20_000)}`;
+    expect(copyExcerpt(article)).toBe("Opening line.");
+    const plain = `Opening line.   ${"More of the article. ".repeat(20_000)}`;
+    expect(copyExcerpt(plain)).toBe("Opening line.");
+  });
+
+  it("does not read half a tag at the cut as text", () => {
+    // The link's opening tag straddles the point where reading stops.
+    const copy = `<p>${"word ".repeat(790)}<a href="https://www.artic.edu/${"x".repeat(200)}">a link</a> and the rest.</p>`;
+    const text = copyExcerpt(copy, 10_000);
+    expect(text).toMatch(/^word word/);
+    expect(text).not.toMatch(/[<>]|href|artic\.edu/);
+  });
+
+  it("still knows a text is HTML when its first block tag comes late", () => {
+    const copy = `Intro with <em>emphasis</em>. ${"Filler. ".repeat(1000)}<p>Later.</p>`;
+    expect(copyExcerpt(copy)).toMatch(/^Intro with emphasis\./);
+  });
+});
+
+describe("the search window and the data cache", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("counts only the pages the API will serve", () => {
+    const pages = (total: number, limit: number) =>
+      toRecordPage({ pagination: { total }, data: [] }, z.unknown(), limit)
+        .totalPages;
+    expect(pages(50, 24)).toBe(3);
+    // 42 × 24 would reach result 1,008, which the API refuses.
+    expect(pages(5000, 24)).toBe(41);
+    expect(pages(5000, 20)).toBe(50);
+    expect(pages(5000, 0)).toBe(0);
+  });
+
+  it("refuses a page past the window without asking the API", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      searchRecords("agents", z.unknown(), { limit: 24, page: 42 }),
+    ).rejects.toMatchObject({ code: "bad_request", retryable: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a list that is not a list", () => {
+    expect(() => toRecordPage({ data: "nope" }, z.unknown(), 24)).toThrow(
+      /unexpected list/,
+    );
+  });
+
+  it("keeps fixed lists and single records, but nothing a visitor typed", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      jsonResponse(
+        String(url).includes("/agents/7")
+          ? { data: { id: 7 } }
+          : { pagination: { total: 0 }, data: [] },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const id = z.object({ id: z.number() });
+    await searchRecords("agents", id, { limit: 24 });
+    await searchRecords("agents", id, { limit: 24, keyword: "monet" });
+    await readRecord("/agents/7?fields=id", id);
+    await readByIds("agents", [7], id, "id");
+    await readByIds("agents", [7], id, "id", REVALIDATE_REFERENCE);
+    expect(
+      fetchMock.mock.calls.map(
+        (call) =>
+          ((call as unknown[])[1] as { next?: { revalidate?: number } })?.next
+            ?.revalidate,
+      ),
+    ).toEqual([
+      REVALIDATE_REFERENCE,
+      undefined,
+      REVALIDATE_REFERENCE,
+      undefined,
+      REVALIDATE_REFERENCE,
+    ]);
   });
 });
 

@@ -26,6 +26,11 @@ export const museumEn = {
     noMatch: "Nothing matches “{q}”.",
     nothing: "Nothing here right now.",
     filterLabel: "Filter",
+    /** After a label that introduces a list on the same line. */
+    colon: ": ",
+    listSeparator: ", ",
+    /** Link text beside a credit line; leads back to the museum's own site. */
+    museumSite: "artic.edu",
   },
   siteSearch: {
     eyebrow: "Art Institute of Chicago",
@@ -216,6 +221,7 @@ export const museumEn = {
     },
     kindLabel: "Media type",
     searchLabel: "Search {kind}",
+    openSound: "Open recording",
     openDocument: "Open document",
     openVideo: "Open video",
     visitSite: "Visit site",
@@ -264,6 +270,9 @@ export const museumZhTw: MuseumDictionary = {
     noMatch: "找不到符合「{q}」的內容。",
     nothing: "目前沒有內容。",
     filterLabel: "篩選",
+    colon: "：",
+    listSeparator: "、",
+    museumSite: "artic.edu",
   },
   siteSearch: {
     eyebrow: "芝加哥藝術博物館",
@@ -447,6 +456,7 @@ export const museumZhTw: MuseumDictionary = {
     },
     kindLabel: "資料類型",
     searchLabel: "搜尋{kind}",
+    openSound: "開啟錄音",
     openDocument: "開啟文件",
     openVideo: "開啟影片",
     visitSite: "前往網站",

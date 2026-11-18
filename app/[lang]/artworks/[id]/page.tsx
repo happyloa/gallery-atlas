@@ -12,7 +12,7 @@ import {
   OnView,
 } from "@/components/artwork/detail-extras";
 import { ArtworkResources } from "@/components/artwork/artwork-resources";
-import { OutLink } from "@/components/library/parts";
+import { Credit, OutLink } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { ZoomDialog } from "@/components/artwork/zoom-dialog";
 import { ExhibitionPicker } from "@/components/collections/exhibition-picker";
@@ -23,24 +23,19 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLeft, ArrowUpRight } from "@/components/ui/icons";
 import { getArtworkDetail } from "@/lib/artic/artworks";
 import { museumArtworkUrl } from "@/lib/artic/config";
+import { UNKNOWN_ARTIST } from "@/lib/artic/mapper";
 import { parseArtworkId } from "@/lib/artic/queries";
 import type { ArtworkDetail } from "@/lib/artwork/types";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
+import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { serializeJsonLd } from "@/lib/json-ld";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 import { absoluteUrl } from "@/lib/site";
 import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string; id: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 /** One upstream read shared by generateMetadata and the page. */
 const loadArtwork = cache(async (rawId: string) => {
@@ -84,14 +79,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [
-          LOCALE_TAGS[l],
-          localizePath(l, `/artworks/${id}`),
-        ]),
-      ),
-    },
+    alternates: languageAlternates(locale, `/artworks/${id}`),
     openGraph: {
       title,
       description,
@@ -166,22 +154,37 @@ function Restricted({
 }
 
 /** schema.org VisualArtwork, for search engines. Built from our own mapped fields only. */
-function JsonLd({ artwork, locale }: { artwork: ArtworkDetail; locale: Locale }) {
+function JsonLd({
+  artwork,
+  locale,
+}: {
+  artwork: ArtworkDetail;
+  locale: Locale;
+}) {
   const data = {
     "@context": "https://schema.org",
     "@type": "VisualArtwork",
     name: artwork.title,
     url: absoluteUrl(localizePath(locale, `/artworks/${artwork.id}`)),
     image: artwork.image.src,
-    ...(artwork.artist !== "Artist unknown" ? { creator: { "@type": "Person", name: artwork.artist } } : {}),
+    ...(artwork.artist !== UNKNOWN_ARTIST
+      ? { creator: { "@type": "Person", name: artwork.artist } }
+      : {}),
     ...(artwork.dateDisplay ? { dateCreated: artwork.dateDisplay } : {}),
     ...(artwork.medium ? { artMedium: artwork.medium } : {}),
     ...(artwork.type ? { artform: artwork.type } : {}),
-    ...(artwork.origin ? { locationCreated: { "@type": "Place", name: artwork.origin } } : {}),
+    ...(artwork.origin
+      ? { locationCreated: { "@type": "Place", name: artwork.origin } }
+      : {}),
     sameAs: artwork.sourceUrl,
   };
   // JSON-LD must be inline script text; serializeJsonLd escapes anything that could close the tag.
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }} />;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }}
+    />
+  );
 }
 
 export default async function ArtworkPage({ params }: { params: Params }) {
@@ -267,12 +270,20 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               title={artwork.title}
               variant="full"
             />
-            <ExhibitionPicker artworkId={artwork.id} title={artwork.title} variant="full" />
+            <ExhibitionPicker
+              artworkId={artwork.id}
+              title={artwork.title}
+              variant="full"
+            />
             <a
               href={artwork.sourceUrl}
               target="_blank"
               rel={EXTERNAL_REL}
-              className={buttonStyles({ variant: "quiet", size: "md", className: "px-0" })}
+              className={buttonStyles({
+                variant: "quiet",
+                size: "md",
+                className: "px-0",
+              })}
             >
               {t.viewAtMuseum}
               <ArrowUpRight className="size-4" />
@@ -365,7 +376,11 @@ export default async function ArtworkPage({ params }: { params: Params }) {
                   </p>
                 ))}
               </div>
-              <p className="mt-6 text-xs text-muted">{t.descriptionCredit}</p>
+              <Credit
+                text={t.descriptionCredit}
+                dict={dict}
+                className="mt-6 text-xs text-muted"
+              />
             </div>
           </Reveal>
         </Container>

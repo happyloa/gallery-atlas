@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArtworkWall } from "@/components/artwork/artwork-wall";
+import { Credit } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight, ArrowUpRight, Plus } from "@/components/ui/icons";
 import { getMoreByArtist } from "@/lib/artic/artworks";
@@ -19,8 +20,9 @@ import { format } from "@/lib/i18n/format";
 
 const TAG_KINDS: TagKind[] = ["style", "subject", "theme"];
 
+/** Drawn 36px tall; the ::after reaches 4px past it above and below, for a 44px target. */
 const tagChip =
-  "inline-flex min-h-9 items-center rounded-full border border-ink/20 px-3 text-[0.8125rem] text-ink transition-colors duration-200 ease-gallery hover:border-ink hover:bg-ink hover:text-paper";
+  "relative inline-flex min-h-9 items-center rounded-full border border-ink/20 px-3 text-[0.8125rem] text-ink transition-colors duration-200 ease-gallery after:absolute after:inset-x-0 after:-inset-y-1 hover:border-ink hover:bg-ink hover:text-paper";
 
 /** Whether the work is hanging in Chicago now. Renders nothing when the API doesn't say. */
 export function OnView({
@@ -162,7 +164,7 @@ export function LookFurther({
             <div key={kind} className="grid gap-2 sm:grid-cols-[5.5rem_1fr]">
               <dt className="pt-2 text-sm text-muted">{t.tagKinds[kind]}</dt>
               <dd>
-                <ul className="flex flex-wrap gap-1.5">
+                <ul className="flex flex-wrap gap-x-1.5 gap-y-2">
                   {artwork.tags[kind].map((tag) => (
                     <li key={tag}>
                       <Link
@@ -298,7 +300,9 @@ export async function AudioGuide({
   ]);
   // Numbered stops in the older list are the same recordings as the guide's.
   const talks =
-    guide.recordings.length > 0 ? sounds.filter((s) => s.stop === null) : sounds;
+    guide.recordings.length > 0
+      ? sounds.filter((s) => s.stop === null)
+      : sounds;
   if (
     guide.recordings.length === 0 &&
     talks.length === 0 &&
@@ -323,7 +327,10 @@ export async function AudioGuide({
             (mandarin && recording.zhTitle) || recording.title || artwork.title;
           return (
             <li key={recording.soundId}>
-              <p lang={mandarin ? undefined : "en"} className="text-sm text-ink/85">
+              <p
+                lang={mandarin ? undefined : "en"}
+                className="text-sm text-ink/85"
+              >
                 {label}
               </p>
               {/* The transcript follows in the disclosure below. */}
@@ -331,7 +338,11 @@ export async function AudioGuide({
               <audio
                 controls
                 preload="none"
-                src={(mandarin ? recording.zhSrc : recording.src) ?? recording.zhSrc ?? undefined}
+                src={
+                  (mandarin ? recording.zhSrc : recording.src) ??
+                  recording.zhSrc ??
+                  undefined
+                }
                 aria-label={label}
                 className="mt-2 h-10 w-full"
               />
@@ -371,10 +382,13 @@ export async function AudioGuide({
       </ul>
       {guide.tours.length > 0 ? (
         <p className="mt-5 text-sm">
-          <span className="text-muted">{dict.tours.onTours}：</span>
+          <span className="text-muted">
+            {dict.tours.onTours}
+            {dict.common.colon}
+          </span>
           {guide.tours.map((tour, index) => (
             <span key={tour.id}>
-              {index > 0 ? "、" : null}
+              {index > 0 ? dict.common.listSeparator : null}
               <Link
                 href={localizePath(locale, `/tours/${tour.id}`)}
                 lang={zh && tour.zhTitle ? undefined : "en"}
@@ -386,9 +400,13 @@ export async function AudioGuide({
           ))}
         </p>
       ) : null}
-      <p className="mt-3 text-xs text-muted">
-        {guide.recordings.length > 0 ? dict.tours.credit : t.audioCredit}
-      </p>
+      {/* The recordings are the museum's; the link leads to its page for this work. */}
+      <Credit
+        text={guide.recordings.length > 0 ? dict.tours.credit : t.audioCredit}
+        dict={dict}
+        href={artwork.sourceUrl}
+        className="mt-3 text-xs text-muted"
+      />
     </section>
   );
 }

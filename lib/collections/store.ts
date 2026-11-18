@@ -18,6 +18,29 @@ const CHANGE_EVENT = "gallery-atlas:collection-change";
 
 let cachedRaw: string | null | undefined;
 let cachedState: CollectionState = EMPTY_COLLECTION;
+/**
+ * localStorage has to be read again before the cache can be trusted. A wall of saved works
+ * asks for the snapshot hundreds of times per render, so the stored string is only read
+ * after something says it may have changed: another tab, a page restored from the
+ * back/forward cache, or a write about to be made here.
+ */
+let stale = true;
+let watching = false;
+
+const concernsCollection = (event: StorageEvent) =>
+  event.key === STORAGE_KEY || event.key === null;
+
+/** One listener for the whole page, so the cache is marked stale even with no subscribers. */
+function watchStorage(): void {
+  if (watching) return;
+  watching = true;
+  window.addEventListener("storage", (event) => {
+    if (concernsCollection(event)) stale = true;
+  });
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) stale = true;
+  });
+}
 
 function readRaw(): string | null {
   try {
@@ -31,6 +54,9 @@ function readRaw(): string | null {
 /** Current state. Returns the same object until the stored string changes. */
 export function getSnapshot(): CollectionState {
   if (typeof window === "undefined") return EMPTY_COLLECTION;
+  watchStorage();
+  if (!stale) return cachedState;
+  stale = false;
   const raw = readRaw();
   if (raw !== cachedRaw) {
     cachedRaw = raw;
@@ -49,12 +75,21 @@ export function getServerSnapshot(): CollectionState {
 
 export function subscribe(onChange: () => void): () => void {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onChange();
+    if (!concernsCollection(event)) return;
+    stale = true;
+    onChange();
+  };
+  const onPageShow = (event: PageTransitionEvent) => {
+    if (!event.persisted) return;
+    stale = true;
+    onChange();
   };
   window.addEventListener("storage", onStorage);
+  window.addEventListener("pageshow", onPageShow);
   window.addEventListener(CHANGE_EVENT, onChange);
   return () => {
     window.removeEventListener("storage", onStorage);
+    window.removeEventListener("pageshow", onPageShow);
     window.removeEventListener(CHANGE_EVENT, onChange);
   };
 }
@@ -79,6 +114,8 @@ export type WriteResult<T = void> =
 export function update<T>(
   apply: (state: CollectionState) => UpdateResult<T>,
 ): WriteResult<T> {
+  // Read what is stored right now, so an edit another tab has just made is not overwritten.
+  stale = true;
   const result = apply(getSnapshot());
   if (!result.ok) return result;
   if (!persist(result.state)) return { ok: false, reason: "storage" };
@@ -90,4 +127,5 @@ export function update<T>(
 export function resetStoreCache(): void {
   cachedRaw = undefined;
   cachedState = EMPTY_COLLECTION;
+  stale = true;
 }

@@ -39,11 +39,13 @@ test("search, open a work, save it, and find it again after a reload", async ({
   expect(
     iiif.some((url) => url.includes("2d484387-2509-5e8e-2c43-22f9981972eb")),
   ).toBe(true);
-  // The CC BY description is shown with its credit.
+  // The CC BY description is shown with its credit, and the licence links to its terms.
   await expect(page.getByText("Fixture description for")).toBeVisible();
+  const credit = page.getByText("Description: Art Institute of Chicago,");
+  await expect(credit).toBeVisible();
   await expect(
-    page.getByText("Description: Art Institute of Chicago, CC BY 4.0."),
-  ).toBeVisible();
+    credit.getByRole("link", { name: /^CC BY 4\.0/ }),
+  ).toHaveAttribute("href", "https://creativecommons.org/licenses/by/4.0/");
 
   // Save it.
   const save = page.getByRole("button", { name: /^Save/ });

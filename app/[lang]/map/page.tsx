@@ -7,33 +7,23 @@ import { searchHref } from "@/lib/artic/search-url";
 import { MAP_HEIGHT, MAP_WIDTH, project } from "@/lib/geo/projection";
 import { PLACES, placeByKey } from "@/lib/geo/places";
 import { WORLD_LAND_PATH } from "@/lib/geo/world-land";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
+import { LOCALE_TAGS } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.map.heading,
     description: dict.map.metaDescription,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/map")]),
-      ),
-    },
+    alternates: languageAlternates(locale, "/map"),
   };
 }
 

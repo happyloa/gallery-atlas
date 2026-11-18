@@ -7,15 +7,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getArtworksByIds } from "@/lib/artic/artworks";
 import { describeFailure } from "@/lib/artic/error-reason";
 import { parseSharedExhibition } from "@/lib/collections/share";
-import { isLocale } from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+import { localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 export async function generateMetadata({
   params,
@@ -42,8 +39,7 @@ export default async function SharedExhibitionPage({
   if (!shared) {
     return (
       <Container className="py-16 sm:py-24">
-        <EmptyState headingLevel="h1" title={t.invalidTitle}>
-        </EmptyState>
+        <EmptyState headingLevel="h1" title={t.invalidTitle}></EmptyState>
       </Container>
     );
   }
@@ -63,7 +59,9 @@ export default async function SharedExhibitionPage({
           <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
             {t.eyebrow}
           </p>
-          <h1 className="mt-4 font-serif text-4xl break-words sm:text-6xl">{shared.title}</h1>
+          <h1 className="mt-4 font-serif text-4xl break-words sm:text-6xl">
+            {shared.title}
+          </h1>
           {read && read.unavailable.length > 0 ? (
             <p className="mt-3 text-sm text-muted">
               {format(t.missing, { count: read.unavailable.length })}
@@ -74,7 +72,11 @@ export default async function SharedExhibitionPage({
       </header>
       {failure ? <ResultsError {...failure} /> : null}
       {read ? (
-        <ArtworkWall artworks={read.artworks} locale={locale} className="mt-12" />
+        <ArtworkWall
+          artworks={read.artworks}
+          locale={locale}
+          className="mt-12"
+        />
       ) : null}
     </Container>
   );

@@ -17,20 +17,14 @@ import { describeFailure } from "@/lib/artic/error-reason";
 import { getMuseumExhibition } from "@/lib/artic/museum";
 import { parseId } from "@/lib/artic/queries";
 import type { MuseumExhibition } from "@/lib/artwork/types";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
+import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string; id: string }>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 const loadExhibition = cache(async (rawId: string) => {
   const id = parseId(rawId);
@@ -44,7 +38,8 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { lang, id } = await params;
-  const dict = getDictionary(localeOf(lang));
+  const locale = localeOf(lang);
+  const dict = getDictionary(locale);
   const lookup = await loadExhibition(id).catch(() => null);
   if (lookup?.status !== "ok") return { title: dict.meta.notFoundTitle };
   const { exhibition } = lookup;
@@ -55,14 +50,7 @@ export async function generateMetadata({
       first.length > 180
         ? `${first.slice(0, 177).trimEnd()}…`
         : first || undefined,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [
-          LOCALE_TAGS[l],
-          localizePath(l, `/exhibitions/${exhibition.id}`),
-        ]),
-      ),
-    },
+    alternates: languageAlternates(locale, `/exhibitions/${exhibition.id}`),
   };
 }
 

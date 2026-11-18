@@ -27,7 +27,6 @@ export function ExhibitionsSection() {
   const hydrated = useHydrated();
   const collection = useCollection();
   const inputId = useId();
-  const hintId = useId();
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -76,9 +75,6 @@ export function ExhibitionsSection() {
         <h2 id="exhibitions-heading" className="font-serif text-2xl">
           {t.heading}
         </h2>
-        <p id={hintId} className="mt-1 max-w-2xl text-sm text-muted">
-          {t.intro}
-        </p>
       </div>
 
       <form onSubmit={create} className="mt-8 flex max-w-xl flex-col gap-2">
@@ -95,8 +91,7 @@ export function ExhibitionsSection() {
             onChange={(event) => setName(event.target.value)}
             maxLength={MAX_EXHIBITION_TITLE}
             placeholder={t.newPlaceholder}
-            aria-describedby={hintId}
-            className="min-h-12 min-w-0 flex-1 border-0 border-b border-ink/30 bg-transparent font-serif text-xl text-ink placeholder:text-muted/80 focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4"
+            className="min-h-12 min-w-0 flex-1 border-0 border-b border-ink/30 bg-transparent font-serif text-xl text-ink placeholder:text-muted focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4"
           />
           <Button type="submit" variant="secondary" disabled={!hydrated}>
             {t.create}

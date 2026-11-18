@@ -10,7 +10,13 @@ export const PAGE_SIZE = 12;
 
 /** The search endpoint refuses offsets beyond its first 1,000 results (verified: page 84 × 12 → 403). */
 export const MAX_SEARCH_RESULTS = 1000;
-export const MAX_PAGE = Math.floor(MAX_SEARCH_RESULTS / PAGE_SIZE);
+
+/** The last page of `limit` records that still lies inside the search window. */
+export function maxPageFor(limit: number): number {
+  return limit > 0 ? Math.max(1, Math.floor(MAX_SEARCH_RESULTS / limit)) : 1;
+}
+
+export const MAX_PAGE = maxPageFor(PAGE_SIZE);
 
 export const MAX_QUERY_LENGTH = 100;
 
@@ -19,9 +25,38 @@ export const MAX_IDS_PER_REQUEST = 50;
 
 export const REQUEST_TIMEOUT_MS = 9000;
 
-/** Seconds a cached upstream response stays fresh (vinext fetch cache). */
-export const REVALIDATE_SEARCH = 10 * 60;
-export const REVALIDATE_ARTWORK = 60 * 60;
+/**
+ * Which upstream responses go into the shared data cache (vinext's fetch cache, kept in
+ * Workers KV), and for how many seconds they stay fresh.
+ *
+ * KV's free plan allows 1,000 writes a day. Every cached URL costs one write when it is first
+ * read and one more each time it is read again after going stale. So a request passes
+ * `revalidate` only when its URL comes from a bounded set: the homepage's counts and
+ * featured works, the first page of Explore, opening hours, events, tours, the gallery and
+ * vocabulary lists, and index pages without a keyword. Single records other than artworks
+ * (an artist, an exhibition, an article, a product) are kept too, for a day, which is at
+ * most one write per record per day.
+ *
+ * Requests whose URL depends on what a visitor typed or picked are sent without it and are
+ * not stored: keyword searches, suggestions, filtered, scoped or paged Explore results,
+ * works by arbitrary ids, and everything an artwork page reads (the record and its extras;
+ * there are over a hundred thousand works, and theirs is the page visited most). The edge
+ * cache in worker/ already keeps the rendered page for each URL, so the second copy bought
+ * little and used most of the day's writes.
+ *
+ * Nothing is refreshed more often than hourly: a ten-minute lifetime rewrote the same few
+ * keys up to 144 times a day each.
+ */
+
+/** Listings that change during the day: Explore's first page, events, works on view. */
+export const REVALIDATE_LISTING = 60 * 60;
+
+/**
+ * Lifetimes the /api routes put in their Cache-Control header, for caches in front of the
+ * site. They are not KV settings.
+ */
+export const RESPONSE_MAX_AGE_SEARCH = 10 * 60;
+export const RESPONSE_MAX_AGE_ARTWORK = 60 * 60;
 
 export const ARTWORK_FIELDS = [
   "id",
@@ -92,7 +127,7 @@ export function museumArtworkUrl(id: number): string {
   return `https://www.artic.edu/artworks/${id}`;
 }
 
-/** Seconds that slow-changing data stays fresh: artist records and collection counts. */
+/** Slow-changing data: counts, vocabularies, hours, and single records read by id. */
 export const REVALIDATE_REFERENCE = 24 * 60 * 60;
 
 /**
@@ -127,7 +162,14 @@ export type EraSlug = (typeof ERAS)[number]["slug"];
  * twenty works. `swatch` is the colour drawn for the filter.
  */
 export const COLORS = [
-  { slug: "red", hues: [[345, 360], [0, 15]], swatch: "#a8402f" },
+  {
+    slug: "red",
+    hues: [
+      [345, 360],
+      [0, 15],
+    ],
+    swatch: "#a8402f",
+  },
   { slug: "orange", hues: [[15, 35]], swatch: "#c46a2c" },
   { slug: "ochre", hues: [[35, 65]], swatch: "#c19a45" },
   { slug: "green", hues: [[65, 160]], swatch: "#5c7a48" },
@@ -143,7 +185,11 @@ export const COLORS = [
 export type ColorSlug = (typeof COLORS)[number]["slug"];
 
 /** A colour counts as vivid enough to file under a hue within these bounds (0–100). */
-export const VIVID = { minSaturation: 25, minLightness: 15, maxLightness: 85 } as const;
+export const VIVID = {
+  minSaturation: 25,
+  minLightness: 15,
+  maxLightness: 85,
+} as const;
 
 /** Which tag list a style, subject or theme filter searches. */
 export const TAG_FIELDS = {
@@ -162,13 +208,43 @@ export type TagKind = keyof typeof TAG_FIELDS;
  * the museum's own records, with a public-domain work from it as the cover.
  */
 export const ENTRANCES = [
-  { slug: "impressionism", kind: "style", value: "Impressionism", cover: 16568 },
-  { slug: "post-impressionism", kind: "style", value: "Post-Impressionism", cover: 61128 },
-  { slug: "japanese", kind: "style", value: "Japanese (culture or style)", cover: 89503 },
-  { slug: "chinese", kind: "style", value: "Chinese (culture or style)", cover: 35376 },
+  {
+    slug: "impressionism",
+    kind: "style",
+    value: "Impressionism",
+    cover: 16568,
+  },
+  {
+    slug: "post-impressionism",
+    kind: "style",
+    value: "Post-Impressionism",
+    cover: 61128,
+  },
+  {
+    slug: "japanese",
+    kind: "style",
+    value: "Japanese (culture or style)",
+    cover: 89503,
+  },
+  {
+    slug: "chinese",
+    kind: "style",
+    value: "Chinese (culture or style)",
+    cover: 35376,
+  },
   { slug: "egyptian", kind: "style", value: "egyptian", cover: 127859 },
-  { slug: "americas", kind: "style", value: "Arts of the Americas", cover: 91620 },
-  { slug: "women-artists", kind: "theme", value: "Women artists", cover: 111442 },
+  {
+    slug: "americas",
+    kind: "style",
+    value: "Arts of the Americas",
+    cover: 91620,
+  },
+  {
+    slug: "women-artists",
+    kind: "theme",
+    value: "Women artists",
+    cover: 111442,
+  },
   { slug: "icons", kind: "theme", value: "Art Institute Icons", cover: 87479 },
 ] as const satisfies readonly {
   slug: string;

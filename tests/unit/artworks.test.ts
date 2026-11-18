@@ -5,7 +5,7 @@ import {
   getArtworksByIds,
   searchArtworks,
 } from "@/lib/artic/artworks";
-import { MAX_PAGE } from "@/lib/artic/config";
+import { MAX_PAGE, REVALIDATE_LISTING } from "@/lib/artic/config";
 import { getFeaturedArtworks } from "@/lib/artic/featured";
 import {
   detailResponse,
@@ -146,6 +146,89 @@ describe("getArtworksByIds", () => {
     const result = await getArtworksByIds(ids, { fetchImpl, ...fastRetry });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(result.unavailable).toHaveLength(120);
+  });
+});
+
+describe("pages past the search window", () => {
+  it("refuses them without asking the API, which would answer 403", async () => {
+    const fetchImpl = vi.fn();
+    await expect(
+      searchArtworks({ ...EMPTY_QUERY, page: MAX_PAGE + 1 }, { fetchImpl }),
+    ).rejects.toMatchObject({ code: "bad_request", retryable: false });
+    // Four to a page reaches further than twelve to a page.
+    await expect(
+      searchArtworks(
+        { ...EMPTY_QUERY, page: 251 },
+        { fetchImpl },
+        { artistId: 1, limit: 4 },
+      ),
+    ).rejects.toMatchObject({ code: "bad_request" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("still serves the last page inside it", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(searchResponse([rawArtwork()], { total: 5000 })),
+    );
+    const result = await searchArtworks(
+      { ...EMPTY_QUERY, page: MAX_PAGE },
+      { fetchImpl, ...fastRetry },
+    );
+    expect(result.page).toBe(MAX_PAGE);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("what is kept in the data cache", () => {
+  /** The `revalidate` each request carried; undefined means "not kept". */
+  const revalidates = (fetchImpl: { mock: { calls: unknown[][] } }) =>
+    fetchImpl.mock.calls.map(
+      (call) =>
+        (call[1] as { next?: { revalidate?: number } } | undefined)?.next
+          ?.revalidate,
+    );
+
+  it("keeps Explore's first page and no other search", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(searchResponse([rawArtwork()])),
+    );
+    const options = { fetchImpl, ...fastRetry };
+    await searchArtworks(EMPTY_QUERY, options);
+    await searchArtworks({ ...EMPTY_QUERY, q: "monet" }, options);
+    await searchArtworks({ ...EMPTY_QUERY, type: "painting" }, options);
+    await searchArtworks({ ...EMPTY_QUERY, sort: "oldest" }, options);
+    await searchArtworks({ ...EMPTY_QUERY, page: 2 }, options);
+    await searchArtworks(EMPTY_QUERY, options, { artistId: 40810 });
+    expect(revalidates(fetchImpl)).toEqual([
+      REVALIDATE_LISTING,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("keeps works read by id only for a list the caller says is fixed", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) =>
+      jsonResponse(
+        String(url).includes("ids=")
+          ? listResponse([rawArtwork()])
+          : detailResponse(rawArtwork()),
+      ),
+    );
+    const options = { fetchImpl, ...fastRetry };
+    await getArtwork(27992, options);
+    await getArtworksByIds([27992], options);
+    await getArtworksByIds([27992], {
+      ...options,
+      revalidate: REVALIDATE_LISTING,
+    });
+    expect(revalidates(fetchImpl)).toEqual([
+      undefined,
+      undefined,
+      REVALIDATE_LISTING,
+    ]);
   });
 });
 

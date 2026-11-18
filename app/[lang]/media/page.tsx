@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
+  Credit,
   FilterChips,
   IndexList,
   KeywordForm,
   ListPagination,
+  MUSEUM_SITE,
   OutLink,
   PageHeader,
   ResultCount,
@@ -33,14 +36,23 @@ type Params = Promise<{ lang: string }>;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
+  const query = await searchParams;
+  const kind = stringParam(query, "kind");
   return {
     title: dict.media.heading,
     description: dict.media.metaDescription,
-    alternates: languageAlternates("/media"),
+    alternates: languageAlternates(locale, "/media", {
+      q: keywordParam(query),
+      kind: kind && kind !== "sounds" && isMediaKind(kind) ? kind : null,
+      page: pageParam(query) ?? 1,
+    }),
   };
 }
 
@@ -89,6 +101,11 @@ function MediaRow({
         />
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+        {kind === "sounds" ? (
+          <OutLink href={item.url} dict={dict}>
+            {t.openSound}
+          </OutLink>
+        ) : null}
         {kind === "documents" ? (
           <OutLink href={item.url} dict={dict}>
             {t.openDocument}
@@ -106,10 +123,11 @@ function MediaRow({
         ) : null}
         {item.artworks.length > 0 ? (
           <p className="text-muted">
-            {t.related}：
+            {t.related}
+            {dict.common.colon}
             {item.artworks.map((artwork, index) => (
               <span key={artwork.id}>
-                {index > 0 ? "、" : null}
+                {index > 0 ? dict.common.listSeparator : null}
                 <Link
                   href={localizePath(locale, `/artworks/${artwork.id}`)}
                   prefetch={false}
@@ -140,6 +158,8 @@ export default async function MediaPage({
   const query = await searchParams;
   const q = keywordParam(query);
   const page = pageParam(query);
+  // Past the last page the museum's search can show: no such page, and no request for it.
+  if (page === null) notFound();
   const rawKind = stringParam(query, "kind") ?? "sounds";
   const kind: MediaKind = isMediaKind(rawKind) ? rawKind : "sounds";
   const base = localizePath(locale, "/media");
@@ -212,7 +232,12 @@ export default async function MediaPage({
             />
           </>
         ) : null}
-        <p className="mt-16 text-xs text-muted">{t.credit}</p>
+        <Credit
+          text={t.credit}
+          dict={dict}
+          href={MUSEUM_SITE}
+          className="mt-16 text-xs text-muted"
+        />
       </Container>
     </div>
   );

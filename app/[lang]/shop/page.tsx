@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ResultsError } from "@/components/discover/results-error";
 import {
   ListPagination,
@@ -23,16 +24,27 @@ import type { RouteSearchParams } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
 
+/**
+ * The shop is paged through in order, not searched, so the 1,000-result window does not
+ * apply. This only keeps absurd page numbers from being sent on.
+ */
+const MAX_SHOP_PAGE = 9999;
+
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<RouteSearchParams>;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
   return {
     title: dict.shop.heading,
     description: dict.shop.metaDescription,
-    alternates: languageAlternates("/shop"),
+    alternates: languageAlternates(locale, "/shop", {
+      page: pageParam(await searchParams, MAX_SHOP_PAGE) ?? 1,
+    }),
   };
 }
 
@@ -46,7 +58,8 @@ export default async function ShopPage({
   const locale = localeOf((await params).lang);
   const dict = getDictionary(locale);
   const t = dict.shop;
-  const page = pageParam(await searchParams);
+  const page = pageParam(await searchParams, MAX_SHOP_PAGE);
+  if (page === null) notFound();
   const base = localizePath(locale, "/shop");
   const result = await attempt(() => getProducts(page));
 

@@ -45,7 +45,12 @@ export function ZoomDialog({
   const viewerRef = useRef<OpenSeadragon.Viewer | null>(null);
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<Level>("fit");
-  const [mode, setMode] = useState<Mode>(tileSource ? "loading" : "image");
+  /** The tiles could not be loaded; the single large image is shown from then on. */
+  const [tilesFailed, setTilesFailed] = useState(false);
+  /** The deep-zoom viewer has drawn the image. */
+  const [viewerReady, setViewerReady] = useState(false);
+  const mode: Mode =
+    !tileSource || tilesFailed ? "image" : viewerReady ? "deep" : "loading";
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -53,6 +58,7 @@ export function ZoomDialog({
     const onClose = () => {
       setOpen(false);
       setLevel("fit");
+      setViewerReady(false);
     };
     dialog.addEventListener("close", onClose);
     return () => dialog.removeEventListener("close", onClose);
@@ -68,9 +74,11 @@ export function ZoomDialog({
     };
   }, [open]);
 
-  // Deep zoom: load OpenSeadragon on first open and point it at the IIIF tiles.
+  // Deep zoom: load OpenSeadragon on first open and point it at the IIIF tiles. One viewer
+  // per opening: this must not depend on anything the viewer itself changes when it opens,
+  // or the cleanup would destroy the viewer that has just finished loading.
   useEffect(() => {
-    if (!open || !tileSource || mode === "image") return;
+    if (!open || !tileSource || tilesFailed) return;
     const element = stageRef.current;
     if (!element) return;
     let cancelled = false;
@@ -93,24 +101,24 @@ export function ZoomDialog({
           maxZoomPixelRatio: 2,
         });
         viewer.addOnceHandler("open", () => {
-          if (!cancelled) setMode("deep");
+          if (!cancelled) setViewerReady(true);
         });
         viewer.addOnceHandler("open-failed", () => {
-          if (!cancelled) setMode("image");
+          if (!cancelled) setTilesFailed(true);
           viewer.destroy();
           viewerRef.current = null;
         });
         viewerRef.current = viewer;
       })
       .catch(() => {
-        if (!cancelled) setMode("image");
+        if (!cancelled) setTilesFailed(true);
       });
     return () => {
       cancelled = true;
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [open, tileSource, mode]);
+  }, [open, tileSource, tilesFailed]);
 
   const show = () => {
     setOpen(true);
@@ -139,12 +147,13 @@ export function ZoomDialog({
         className={buttonStyles({ variant: "secondary", size: "sm" })}
       >
         <Expand className="size-4" />
-        {dict.detail.viewFullImage}
+        {t.open}
       </button>
 
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
+        data-tone="dark"
         className="m-0 h-dvh max-h-none w-dvw max-w-none bg-gallery p-0 text-gallery-text backdrop:bg-black/80"
       >
         <div className="flex h-full flex-col">
@@ -269,7 +278,6 @@ export function ZoomDialog({
               ) : null}
             </div>
           )}
-
         </div>
       </dialog>
     </>

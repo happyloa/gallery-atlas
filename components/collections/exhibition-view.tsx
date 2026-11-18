@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArtworkCard } from "@/components/artwork/artwork-card";
 import { Reveal } from "@/components/motion/reveal";
 import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowLeft, ArrowUpRight, Pencil, Trash, X } from "@/components/ui/icons";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Pencil,
+  Trash,
+  X,
+} from "@/components/ui/icons";
 import { findExhibition, MAX_EXHIBITION_TITLE } from "@/lib/collections/schema";
 import { useArtworks } from "@/lib/collections/use-artworks";
 import {
@@ -48,6 +54,17 @@ export function ExhibitionView({ id }: { id: string }) {
   useEffect(() => {
     if (exhibition) document.title = `${exhibition.title} · Gallery Atlas`;
   }, [exhibition]);
+
+  // Keyboard focus must not fall back to the top of the page when the control it was on
+  // goes away: the rename form closing, or a work being removed from the wall.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const renameButton = useRef<HTMLButtonElement>(null);
+  const wallRef = useRef<HTMLUListElement>(null);
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !editing) renameButton.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
 
   if (!hydrated)
     return <ResultsSkeleton label={dict.explore.loading} count={4} />;
@@ -162,13 +179,15 @@ export function ExhibitionView({ id }: { id: string }) {
               </Button>
             </form>
           ) : (
-            <h1 className="mt-3 font-serif text-4xl break-words sm:text-6xl">
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="mt-3 font-serif text-4xl break-words sm:text-6xl"
+            >
               {exhibition.title}
             </h1>
           )}
-          <p className="mt-3 text-sm text-muted">
-            {countLabel} · {dict.collection.localOnly}
-          </p>
+          <p className="mt-3 text-sm text-muted">{countLabel}</p>
         </div>
 
         {!editing ? (
@@ -180,6 +199,7 @@ export function ExhibitionView({ id }: { id: string }) {
               </Button>
             ) : null}
             <Button
+              ref={renameButton}
               variant="secondary"
               size="sm"
               onClick={() => {
@@ -262,7 +282,10 @@ export function ExhibitionView({ id }: { id: string }) {
           <p>{t.emptyExhibitionBody}</p>
         </EmptyState>
       ) : (
-        <ul className="mt-12 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul
+          ref={wallRef}
+          className="mt-12 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
           {records.artworks.map((artwork, index) => {
             const label = format(t.removeWork, { title: artwork.title });
             return (
@@ -276,15 +299,29 @@ export function ExhibitionView({ id }: { id: string }) {
                       type="button"
                       aria-label={label}
                       title={label}
-                      onClick={() => {
+                      data-remove-work=""
+                      onClick={(event) => {
+                        // This button is about to go: pass focus to the next work's, or
+                        // the previous one's, or the heading when the wall is now empty.
+                        const buttons = [
+                          ...(wallRef.current?.querySelectorAll<HTMLElement>(
+                            "[data-remove-work]",
+                          ) ?? []),
+                        ];
+                        const at = buttons.indexOf(event.currentTarget);
+                        const next = buttons[at + 1] ?? buttons[at - 1] ?? null;
                         const result = exhibitionActions.removeWorks(
                           exhibition.id,
                           artwork.id,
                         );
                         setStatus(result.ok ? t.workRemoved : "");
-                        if (!result.ok) setError(dict.favorite.storage);
+                        if (!result.ok) {
+                          setError(dict.favorite.storage);
+                          return;
+                        }
+                        (next ?? headingRef.current)?.focus();
                       }}
-                      className="inline-flex size-10 items-center justify-center rounded-full bg-paper/90 text-ink shadow-sm backdrop-blur transition-colors duration-200 ease-gallery hover:bg-paper"
+                      className="inline-flex size-11 items-center justify-center rounded-full bg-paper/90 text-ink shadow-sm backdrop-blur transition-colors duration-200 ease-gallery hover:bg-paper"
                     >
                       <X className="size-4" />
                     </button>

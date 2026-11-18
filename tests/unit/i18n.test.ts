@@ -5,9 +5,16 @@ import {
   negotiateLocale,
   switchLocalePath,
 } from "@/lib/i18n/config";
-import { en } from "@/lib/i18n/dictionaries/en";
-import { zhTw } from "@/lib/i18n/dictionaries/zh-tw";
+import {
+  CLIENT_SECTIONS,
+  getClientDictionary,
+  getDictionary,
+} from "@/lib/i18n/dictionaries";
 import { format } from "@/lib/i18n/format";
+
+// The merged dictionaries the site actually serves: en.ts / zh-tw.ts plus museum.ts.
+const en = getDictionary("en");
+const zhTw = getDictionary("zh-tw");
 
 describe("negotiateLocale", () => {
   it("defaults to English", () => {
@@ -57,16 +64,30 @@ describe("dictionaries", () => {
 
   it("has every English key translated, with no empty strings", () => {
     expect(keys(zhTw).sort()).toEqual(keys(en).sort());
-    for (const key of keys(zhTw)) {
-      const value = key
-        .split(".")
-        .reduce<unknown>(
-          (node, part) => (node as Record<string, unknown>)[part],
-          zhTw,
+    // The museum sections are merged in, not checked as an afterthought.
+    expect(keys(en)).toContain("nav.search");
+    expect(keys(en)).toContain("workExtras.moreViews");
+    for (const dict of [en, zhTw]) {
+      for (const key of keys(dict)) {
+        const value = key
+          .split(".")
+          .reduce<unknown>(
+            (node, part) => (node as Record<string, unknown>)[part],
+            dict,
+          );
+        expect(typeof value === "string" && value.trim().length > 0, key).toBe(
+          true,
         );
-      expect(typeof value === "string" && value.trim().length > 0, key).toBe(
-        true,
-      );
+      }
+    }
+  });
+
+  it("sends the browser only the sections client components use", () => {
+    for (const locale of ["en", "zh-tw"] as const) {
+      const client = getClientDictionary(locale);
+      expect(Object.keys(client).sort()).toEqual([...CLIENT_SECTIONS].sort());
+      for (const section of CLIENT_SECTIONS)
+        expect(client[section]).toBe(getDictionary(locale)[section]);
     }
   });
 

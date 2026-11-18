@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LicensedText } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { localizePath } from "@/lib/i18n/config";
@@ -57,7 +58,9 @@ export function SiteFooter({
           </h2>
           <ul className="mt-4 space-y-2 text-sm leading-6 text-muted">
             <li>{t.metadataLicense}</li>
-            <li>{t.descriptionLicense}</li>
+            <li>
+              <LicensedText text={t.descriptionLicense} dict={dict} />
+            </li>
             <li>{t.imageLicense}</li>
             <li>{dict.nav.museumLicense}</li>
           </ul>

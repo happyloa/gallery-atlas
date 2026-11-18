@@ -8,6 +8,7 @@ import {
   previewArtworks,
 } from "@/lib/fixtures/preview-artworks";
 import { getArtworksByIds } from "./artworks";
+import { REVALIDATE_REFERENCE } from "./config";
 
 /** Seurat, Caillebotte, van Gogh, Monet ×2, Renoir, Cézanne, van Gogh (self-portrait). */
 export const FEATURED_ARTWORK_IDS = [
@@ -28,6 +29,8 @@ export async function getFeaturedArtworks(): Promise<FeaturedArtworks> {
     const { artworks } = await getArtworksByIds(FEATURED_ARTWORK_IDS, {
       timeoutMs: 5000,
       retries: 1,
+      // A fixed list of well-known works, read on every homepage render.
+      revalidate: REVALIDATE_REFERENCE,
     });
     if (artworks.length >= 3) return { artworks, source: "live" };
   } catch {

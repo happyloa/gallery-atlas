@@ -48,9 +48,45 @@ describe("robots and sitemap", () => {
     vi.stubEnv("SITE_URL", "https://gallery.example.org");
     const rules = robots();
     expect(rules.rules).toMatchObject({
-      disallow: ["/api/", "/en/collection", "/zh-tw/collection"],
+      disallow: [
+        "/api/",
+        "/en/collection",
+        "/zh-tw/collection",
+        "/en/random",
+        "/zh-tw/random",
+        "/en/search",
+        "/zh-tw/search",
+        "/en?",
+        "/zh-tw?",
+      ],
     });
     expect(rules.sitemap).toBe("https://gallery.example.org/sitemap.xml");
+  });
+
+  it("keeps crawlers off Explore's filters but not off plain or paged pages", () => {
+    const { rules } = robots();
+    const disallow = Array.isArray(rules) ? [] : [rules.disallow ?? []].flat();
+    // Robots rules without wildcards are prefix matches on the path and query.
+    const blocked = (address: string) =>
+      disallow.some((rule) => address.startsWith(rule));
+    for (const address of [
+      "/en?type=painting&era=1800s&page=3",
+      "/zh-tw?q=monet",
+      "/en?sort=oldest",
+      "/en/random",
+      "/zh-tw/search?q=monet&tab=artists",
+      "/api/suggest?q=mo",
+    ])
+      expect(blocked(address), address).toBe(true);
+    for (const address of [
+      "/en",
+      "/zh-tw",
+      "/en/artworks/27992",
+      "/en/artists?page=2",
+      "/zh-tw/read/articles",
+      "/en/events",
+    ])
+      expect(blocked(address), address).toBe(false);
   });
 
   it("lists both languages with hreflang alternates", () => {

@@ -7,7 +7,10 @@
  * here; nothing stored on the client is trusted.
  */
 import { getArtworksByIds, searchArtworks } from "@/lib/artic/artworks";
-import { REVALIDATE_ARTWORK, REVALIDATE_SEARCH } from "@/lib/artic/config";
+import {
+  RESPONSE_MAX_AGE_ARTWORK,
+  RESPONSE_MAX_AGE_SEARCH,
+} from "@/lib/artic/config";
 import { jsonError, jsonOk, upstreamErrorResponse } from "@/lib/artic/http";
 import { parseArtworkId, parseSearchQuery } from "@/lib/artic/queries";
 
@@ -36,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
     try {
       return jsonOk(
         await getArtworksByIds(ids as number[]),
-        REVALIDATE_ARTWORK,
+        RESPONSE_MAX_AGE_ARTWORK,
       );
     } catch (error) {
       return upstreamErrorResponse(error);
@@ -47,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!parsed.ok)
     return jsonError(400, parsed.error.code, parsed.error.message);
   try {
-    return jsonOk(await searchArtworks(parsed.query), REVALIDATE_SEARCH);
+    return jsonOk(await searchArtworks(parsed.query), RESPONSE_MAX_AGE_SEARCH);
   } catch (error) {
     return upstreamErrorResponse(error);
   }

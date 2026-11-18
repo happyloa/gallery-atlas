@@ -147,9 +147,7 @@ test("no WCAG A/AA violations with dialogs open", async ({ page }) => {
   await expectAccessible(page, "delete confirmation");
 });
 
-test("reduced motion: no smooth scrolling and no idle camera drift", async ({
-  page,
-}) => {
+test("reduced motion: the page does not scroll smoothly", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await gotoReady(page, "/en");
   const scrollBehavior = await page.evaluate(

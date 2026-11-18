@@ -1,15 +1,19 @@
 /**
- * The opening curtain on a full page load: the wordmark is drawn on a paper panel, then the
- * panel lifts away with a darker one close behind, like a curtain going up on the room.
+ * The opening curtain, once per browser session: the wordmark is drawn on a paper panel,
+ * then the panel lifts away with a darker one close behind, like a curtain going up on the
+ * room.
  *
  * Pure CSS, so it plays before hydration and needs no state. It never takes clicks, is
  * hidden from assistive technology, and is skipped for visitors who prefer reduced motion.
- * The layout renders it once; client-side navigations do not replay it.
+ * The layout renders it once; client-side navigations do not replay it, and neither do
+ * later page loads in the same session (the script in app/[lang]/layout.tsx marks <html>
+ * before the first paint, and app/globals.css hides the curtain).
  */
 export function IntroCurtain() {
   return (
     <div
       aria-hidden="true"
+      data-intro-curtain=""
       className="pointer-events-none fixed inset-0 z-[100] animate-[intro-gone_0.01ms_linear_1.9s_forwards] motion-reduce:hidden"
     >
       <div className="absolute inset-0 animate-[intro-lift_0.95s_var(--ease-curtain)_0.95s_both] bg-gallery-soft" />

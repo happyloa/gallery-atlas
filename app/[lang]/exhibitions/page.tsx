@@ -15,38 +15,33 @@ import { getMuseumExhibitions } from "@/lib/artic/museum";
 import { EMPTY_QUERY, parseSearchQuery } from "@/lib/artic/queries";
 import { fitClass } from "@/lib/artwork/fit";
 import type { Artwork } from "@/lib/artwork/types";
-import {
-  isLocale,
-  LOCALE_TAGS,
-  LOCALES,
-  localizePath,
-} from "@/lib/i18n/config";
-import type { Locale } from "@/lib/i18n/config";
+import { LOCALE_TAGS, localizePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { formatCount } from "@/lib/i18n/format";
+import { languageAlternates, localeOf } from "@/lib/page-params";
 
 type Params = Promise<{ lang: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const localeOf = (lang: string): Locale => (isLocale(lang) ? lang : "en");
 
 /** First ids per exhibition tried as its cover; most lists open with a displayable work. */
 const COVER_CANDIDATES = 3;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
-  const dict = getDictionary(localeOf((await params).lang));
+  const locale = localeOf((await params).lang);
+  const dict = getDictionary(locale);
+  const parsed = parseSearchQuery(await searchParams);
   return {
     title: dict.museumExhibitions.heading,
     description: dict.museumExhibitions.metaDescription,
-    alternates: {
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [LOCALE_TAGS[l], localizePath(l, "/exhibitions")]),
-      ),
-    },
+    alternates: languageAlternates(locale, "/exhibitions", {
+      page: parsed.ok ? parsed.query.page : 1,
+    }),
   };
 }
 

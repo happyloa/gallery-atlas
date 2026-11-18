@@ -5,24 +5,37 @@
  */
 import { z } from "zod";
 import type {
+  Artwork,
   Gallery,
   MuseumExhibition,
   ReadingItem,
   Sound,
 } from "@/lib/artwork/types";
-import { aicGet, isAicError } from "./client";
+import { reportUpstreamFailure } from "@/lib/render-health";
+import {
+  aicGet,
+  invalidResponse,
+  isAicError,
+  pastSearchWindow,
+} from "./client";
 import type { AicRequestOptions } from "./client";
 import {
+  ARTWORK_FIELDS,
   EXHIBITIONS_PAGE_SIZE,
   MAX_READING,
+  MAX_SEARCH_RESULTS,
   MAX_SOUNDS,
+  maxPageFor,
   PLACE_FIELD,
-  REVALIDATE_ARTWORK,
+  REVALIDATE_LISTING,
   REVALIDATE_REFERENCE,
   museumArticleUrl,
 } from "./config";
 import { parseDescription } from "./description";
 import { DISPLAYABLE } from "./filters";
+import { resolveIiifBase } from "./images";
+import { toArtworks } from "./mapper";
+import { searchResponseSchema } from "./schema";
 
 type RequestOptions = Omit<AicRequestOptions, "revalidate">;
 
@@ -81,6 +94,28 @@ const list = <T extends z.ZodType>(item: T) =>
 
 const detail = z.object({ data: z.unknown() });
 
+/** The record inside a single-record response. */
+function recordOf(json: unknown, what: string): unknown {
+  const parsed = detail.safeParse(json);
+  if (!parsed.success) throw invalidResponse(what);
+  return parsed.data.data;
+}
+
+/**
+ * Reads one record with `schema`. A record that is there but cannot be read is treated as
+ * missing by the callers, and reported, since "missing" is then only a guess.
+ */
+function readAs<T extends z.ZodType>(
+  json: unknown,
+  what: string,
+  schema: T,
+): z.infer<T> | null {
+  const raw = schema.safeParse(recordOf(json, what));
+  if (raw.success) return raw.data as z.infer<T>;
+  reportUpstreamFailure();
+  return null;
+}
+
 /* Audio ------------------------------------------------------------------------------ */
 
 const rawSound = z.object({ id: z.string(), title: text, content: text });
@@ -101,16 +136,22 @@ export function toSound(raw: z.infer<typeof rawSound>): Sound | null {
   };
 }
 
-/** The recordings linked to a work. Extra, so a failure gives an empty list. */
+/**
+ * The recordings linked to a work. Extra, so a failure gives an empty list. Not kept in
+ * the data cache: the ids are different for every work.
+ */
 export async function getSounds(ids: readonly string[]): Promise<Sound[]> {
   if (ids.length === 0) return [];
   try {
     const json = await aicGet(
       `/sounds?ids=${ids.slice(0, MAX_SOUNDS).join(",")}&fields=id,title,content`,
-      { revalidate: REVALIDATE_REFERENCE, timeoutMs: 5000, retries: 1 },
+      { timeoutMs: 5000, retries: 1 },
     );
     const parsed = list(rawSound).safeParse(json);
-    if (!parsed.success) return [];
+    if (!parsed.success) {
+      reportUpstreamFailure();
+      return [];
+    }
     return parsed.data.items.flatMap((raw) => {
       const sound = toSound(raw);
       return sound ? [sound] : [];
@@ -151,8 +192,8 @@ export async function getGallery(
       return { status: "not_found" };
     throw error;
   }
-  const raw = rawGallery.safeParse(detail.parse(json).data);
-  const gallery = raw.success ? toGallery(raw.data) : null;
+  const raw = readAs(json, "gallery", rawGallery);
+  const gallery = raw ? toGallery(raw) : null;
   return gallery ? { status: "ok", gallery } : { status: "not_found" };
 }
 
@@ -207,18 +248,24 @@ export async function getGalleryOverview(): Promise<GalleryListing[]> {
     page(2),
     aicGet(
       `/artworks/search?params=${encodeURIComponent(JSON.stringify(countsParams))}`,
-      { revalidate: REVALIDATE_ARTWORK },
+      { revalidate: REVALIDATE_LISTING },
     ),
   ]);
+  const counted = galleryCounts.safeParse(counts);
+  // Without counts every gallery would read "0 works": show them, but don't keep the page.
+  if (!counted.success) reportUpstreamFailure();
   const works = new Map(
-    (
-      galleryCounts.safeParse(counts).data?.aggregations.galleries.buckets ?? []
-    ).map((b) => [b.key, b.doc_count]),
+    (counted.data?.aggregations.galleries.buckets ?? []).map((b) => [
+      b.key,
+      b.doc_count,
+    ]),
   );
   const seen = new Set<number>();
   const galleries: GalleryListing[] = [];
   for (const json of [first, second]) {
-    for (const raw of list(rawGallery).parse(json).items) {
+    const page = list(rawGallery).safeParse(json);
+    if (!page.success) throw invalidResponse("gallery list");
+    for (const raw of page.data.items) {
       const gallery = toGallery(raw);
       if (!gallery || seen.has(gallery.id)) continue;
       seen.add(gallery.id);
@@ -323,6 +370,9 @@ export function exhibitionStatus(
   return null;
 }
 
+/** The last page of exhibitions inside the search window. */
+export const MAX_EXHIBITIONS_PAGE = maxPageFor(EXHIBITIONS_PAGE_SIZE);
+
 /** Exhibitions that list works, newest first. */
 export async function getMuseumExhibitions(
   page: number,
@@ -332,6 +382,8 @@ export async function getMuseumExhibitions(
   total: number;
   totalPages: number;
 }> {
+  // The search window is 1,000 results, like artworks.
+  if (page > MAX_EXHIBITIONS_PAGE) throw pastSearchWindow();
   const params = {
     query: { bool: { filter: [{ exists: { field: "artwork_ids" } }] } },
     sort: [{ aic_start_at: "desc" }],
@@ -343,16 +395,18 @@ export async function getMuseumExhibitions(
     `/exhibitions/search?params=${encodeURIComponent(JSON.stringify(params))}`,
     { ...options, revalidate: REVALIDATE_REFERENCE },
   );
-  const parsed = list(rawExhibition).parse(json);
-  // The search window is 1,000 results, like artworks.
-  const reachable = Math.min(parsed.total, 1000);
+  const parsed = list(rawExhibition).safeParse(json);
+  if (!parsed.success) throw invalidResponse("exhibition list");
   return {
-    exhibitions: parsed.items.flatMap((raw) => {
+    exhibitions: parsed.data.items.flatMap((raw) => {
       const exhibition = toExhibition(raw);
       return exhibition ? [exhibition] : [];
     }),
-    total: parsed.total,
-    totalPages: Math.ceil(reachable / EXHIBITIONS_PAGE_SIZE),
+    total: parsed.data.total,
+    totalPages: Math.min(
+      MAX_EXHIBITIONS_PAGE,
+      Math.ceil(parsed.data.total / EXHIBITIONS_PAGE_SIZE),
+    ),
   };
 }
 
@@ -374,8 +428,8 @@ export async function getMuseumExhibition(
       return { status: "not_found" };
     throw error;
   }
-  const raw = rawExhibition.safeParse(detail.parse(json).data);
-  const exhibition = raw.success ? toExhibition(raw.data) : null;
+  const raw = readAs(json, "exhibition", rawExhibition);
+  const exhibition = raw ? toExhibition(raw) : null;
   return exhibition ? { status: "ok", exhibition } : { status: "not_found" };
 }
 
@@ -391,15 +445,11 @@ const rawPublication = z.object({
 /**
  * Articles and digital publications that mention `topic` (an artist's name, usually).
  * Titles and links only: the texts themselves stay on artic.edu. Extra, so failures
- * give an empty list.
+ * give an empty list. A keyword search, so not kept in the data cache.
  */
 export async function getFurtherReading(topic: string): Promise<ReadingItem[]> {
   const q = encodeURIComponent(topic.slice(0, 100));
-  const request = {
-    revalidate: REVALIDATE_REFERENCE,
-    timeoutMs: 5000,
-    retries: 1,
-  };
+  const request = { timeoutMs: 5000, retries: 1 };
   const [articles, publications] = await Promise.allSettled([
     aicGet(
       `/articles/search?q=${q}&limit=${MAX_READING}&fields=id,title`,
@@ -413,6 +463,7 @@ export async function getFurtherReading(topic: string): Promise<ReadingItem[]> {
   const items: ReadingItem[] = [];
   if (articles.status === "fulfilled") {
     const parsed = list(rawArticle).safeParse(articles.value);
+    if (!parsed.success) reportUpstreamFailure();
     for (const raw of parsed.success ? parsed.data.items : []) {
       const title = plainTitle(raw.title, 160);
       if (title)
@@ -421,6 +472,7 @@ export async function getFurtherReading(topic: string): Promise<ReadingItem[]> {
   }
   if (publications.status === "fulfilled") {
     const parsed = list(rawPublication).safeParse(publications.value);
+    if (!parsed.success) reportUpstreamFailure();
     for (const raw of parsed.success ? parsed.data.items : []) {
       const title = plainTitle(raw.title, 160);
       const url = museumUrl(raw.web_url);
@@ -432,17 +484,23 @@ export async function getFurtherReading(topic: string): Promise<ReadingItem[]> {
 
 /* Suggestions ------------------------------------------------------------------------ */
 
-/** Titles and artist names that start like `prefix`, for the search box. */
+/**
+ * Titles and artist names that start like `prefix`, for the search box. Not kept in the
+ * data cache: every few letters typed would be a write of their own.
+ */
 export async function getSuggestions(prefix: string): Promise<string[]> {
   const q = prefix.replace(/\s+/g, " ").trim().slice(0, 60);
   if (q.length < 2) return [];
   try {
     const json = await aicGet(
       `/autocomplete?q=${encodeURIComponent(q)}&resources=artworks,agents`,
-      { revalidate: REVALIDATE_REFERENCE, timeoutMs: 3000, retries: 0 },
+      { timeoutMs: 3000, retries: 0 },
     );
     const parsed = z.array(z.unknown()).safeParse(json);
-    if (!parsed.success) return [];
+    if (!parsed.success) {
+      reportUpstreamFailure();
+      return [];
+    }
     const seen = new Set<string>();
     return parsed.data
       .flatMap((value) => {
@@ -476,7 +534,10 @@ async function searchIds(
     { revalidate, timeoutMs: 5000, retries: 1 },
   );
   const parsed = idList.safeParse(json);
-  if (!parsed.success) return null;
+  if (!parsed.success) {
+    reportUpstreamFailure();
+    return null;
+  }
   return {
     ids: parsed.data.data.map((record) => record.id),
     total: parsed.data.pagination?.total ?? parsed.data.data.length,
@@ -563,26 +624,62 @@ function scatter(day: number): number {
 
 const DAILY_POOL = [...DISPLAYABLE, { term: { is_boosted: true } }];
 
+/** Which highlighted work, counted in id order from 1, is the day's. Null when there are none. */
+async function dailyPosition(date: Date): Promise<number | null> {
+  const count = await searchIds(
+    { query: { bool: { filter: DAILY_POOL } }, fields: "id", limit: 0 },
+    REVALIDATE_REFERENCE,
+  );
+  const total = Math.min(count?.total ?? 0, MAX_SEARCH_RESULTS);
+  return total === 0 ? null : (scatter(dayNumber(date)) % total) + 1;
+}
+
+const dailyParams = (position: number, fields: string) => ({
+  query: { bool: { filter: DAILY_POOL } },
+  sort: [{ id: "asc" }],
+  fields,
+  limit: 1,
+  page: position,
+});
+
 /** One of the museum's highlighted works, the same one for everybody all day (UTC). */
 export async function getWorkOfTheDayId(date: Date): Promise<number | null> {
   try {
-    const count = await searchIds(
-      { query: { bool: { filter: DAILY_POOL } }, fields: "id", limit: 0 },
-      REVALIDATE_REFERENCE,
-    );
-    const total = Math.min(count?.total ?? 0, 1000);
-    if (total === 0) return null;
+    const position = await dailyPosition(date);
+    if (position === null) return null;
     const pick = await searchIds(
-      {
-        query: { bool: { filter: DAILY_POOL } },
-        sort: [{ id: "asc" }],
-        fields: "id",
-        limit: 1,
-        page: (scatter(dayNumber(date)) % total) + 1,
-      },
-      REVALIDATE_ARTWORK,
+      dailyParams(position, "id"),
+      REVALIDATE_LISTING,
     );
     return pick?.ids[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The same pick as a record, read in the request that finds it, so the homepage does not
+ * need a third round trip for the work itself. Null when the API can't name one.
+ */
+export async function getWorkOfTheDay(date: Date): Promise<Artwork | null> {
+  try {
+    const position = await dailyPosition(date);
+    if (position === null) return null;
+    const params = dailyParams(position, ARTWORK_FIELDS.join(","));
+    const json = await aicGet(
+      `/artworks/search?params=${encodeURIComponent(JSON.stringify(params))}`,
+      { revalidate: REVALIDATE_LISTING, timeoutMs: 5000, retries: 1 },
+    );
+    const parsed = searchResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      reportUpstreamFailure();
+      return null;
+    }
+    const [artwork] = toArtworks(
+      parsed.data.data,
+      resolveIiifBase(parsed.data.config?.iiif_url),
+    );
+    return artwork ?? null;
   } catch {
     return null;
   }
@@ -613,7 +710,10 @@ export async function getPlaceCounts(): Promise<Map<string, number> | null> {
       { revalidate: REVALIDATE_REFERENCE, timeoutMs: 6000, retries: 1 },
     );
     const parsed = placeBuckets.safeParse(json);
-    if (!parsed.success) return null;
+    if (!parsed.success) {
+      reportUpstreamFailure();
+      return null;
+    }
     return new Map(
       parsed.data.aggregations.places.buckets.map((b) => [
         b.key.toLowerCase(),

@@ -4,11 +4,7 @@
  * failure into an `AicError` with a code the UI can act on.
  */
 import { AIC_API_BASE, REQUEST_TIMEOUT_MS } from "./config";
-import {
-  fixtureResponse,
-  isFixtureMode,
-  isFixtureNotFound,
-} from "./dev-fixtures";
+import { isFixtureMode } from "./fixture-mode";
 import { reportUpstreamFailure } from "@/lib/render-health";
 
 export type AicErrorCode =
@@ -51,6 +47,41 @@ export function isAicError(error: unknown): error is AicError {
     (error instanceof Error &&
       error.name === "AicError" &&
       typeof (error as { code?: unknown }).code === "string")
+  );
+}
+
+/**
+ * A failure that would come back the same on the next try: the record does not exist, or
+ * the request itself is one the API refuses. A page showing either can be kept; any other
+ * failure may be gone a moment later.
+ */
+export function isStableFailure(error: unknown): boolean {
+  return (
+    isAicError(error) &&
+    (error.code === "not_found" || error.code === "bad_request")
+  );
+}
+
+/**
+ * The error for a response that arrived but is not what the API documents. Also tells the
+ * Worker that the page being rendered is incomplete, since `aicGet` saw nothing wrong.
+ */
+export function invalidResponse(what: string): AicError {
+  reportUpstreamFailure();
+  return new AicError(
+    "invalid_response",
+    `The museum API sent an unexpected ${what} response.`,
+  );
+}
+
+/**
+ * The error for a page beyond the API's 1,000-result window. Raised before any request:
+ * the API answers such a page with a 403, which would look like the museum being down.
+ */
+export function pastSearchWindow(): AicError {
+  return new AicError(
+    "bad_request",
+    "The museum's search only reaches its first 1,000 results.",
   );
 }
 
@@ -160,9 +191,9 @@ export async function aicGet(
   try {
     return await requestJson(path, options);
   } catch (error) {
-    // A missing record is a stable answer; anything else may be gone on the next try.
-    if (!isAicError(error) || error.code !== "not_found")
-      reportUpstreamFailure();
+    // A missing record or a refused request is a stable answer; anything else may be gone
+    // on the next try.
+    if (!isStableFailure(error)) reportUpstreamFailure();
     throw error;
   }
 }
@@ -178,7 +209,10 @@ async function requestJson(
     );
   }
   // End-to-end tests and offline development: answer from local fixtures (never in production).
+  // Imported here, not at the top, so the fixtures stay out of the code a Worker loads.
   if (!options.fetchImpl && isFixtureMode()) {
+    const { fixtureResponse, isFixtureNotFound } =
+      await import("./dev-fixtures");
     try {
       return fixtureResponse(path);
     } catch (error) {

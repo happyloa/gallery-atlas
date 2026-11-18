@@ -3,6 +3,7 @@
  * object types, materials, techniques, styles, subjects, themes, places, vocabularies).
  */
 import { z } from "zod";
+import { reportUpstreamFailure } from "@/lib/render-health";
 import { aicGet } from "./client";
 import { PLACE_FIELD, REVALIDATE_REFERENCE } from "./config";
 import { DISPLAYABLE } from "./filters";
@@ -30,6 +31,8 @@ const bucketsOf = (aggregations: Record<string, unknown>, name: string) => {
       ),
     })
     .safeParse(aggregations[name]);
+  // Every caller asked for this aggregation, so its absence means an incomplete answer.
+  if (!parsed.success) reportUpstreamFailure();
   return parsed.success ? parsed.data.buckets : [];
 };
 
@@ -131,11 +134,13 @@ export async function getArtistIndex({
     (bucket) => typeof bucket.key === "number",
   );
   const slice = ranked.slice((page - 1) * LIST_SIZE, page * LIST_SIZE);
+  // The ranking is fixed for the day, so each page asks for the same ids every time.
   const records = await readByIds(
     "agents",
     slice.map((bucket) => bucket.key),
     rawArtistRow,
     ARTIST_ROW_FIELDS,
+    REVALIDATE_REFERENCE,
   );
   const works = new Map(slice.map((b) => [b.key, b.doc_count]));
   return {
@@ -252,6 +257,7 @@ async function titledTerms(
     buckets.map((b) => b.key),
     rawTerm,
     "id,title,subtype",
+    REVALIDATE_REFERENCE,
   );
   const titles = new Map(
     titled.map((t) => [String(t.id), plainTitle(t.title, 100)]),

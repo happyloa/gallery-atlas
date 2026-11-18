@@ -178,6 +178,18 @@
     outline-offset: 3px;
   }
 
+  /* On the dark gallery colours the accent ring is under 3:1; a light ring is used there.
+     A paper panel inside a dark area (the hero's label card, a menu) switches back. */
+  [data-tone="dark"]:focus-visible,
+  [data-tone="dark"] :focus-visible {
+    outline-color: var(--color-gallery-text);
+  }
+
+  [data-tone="light"]:focus-visible,
+  [data-tone="light"] :focus-visible {
+    outline-color: var(--color-accent);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
@@ -211,6 +223,31 @@
 @keyframes intro-gone {
   to {
     visibility: hidden;
+  }
+}
+
+/* It plays once per browser session. On later page loads a script in the document head
+   (app/[lang]/layout.tsx) sets data-intro-done before the first paint. */
+html[data-intro-done] [data-intro-curtain] {
+  display: none;
+}
+
+/*
+ * An audio tour on a short, narrow screen (a small phone, or any phone on its side). Below
+ * the lg breakpoint the gallery stage sticks under the header while a tour plays; with the
+ * player bar at the bottom that leaves next to nothing of the stops and transcripts on a
+ * screen this short. So here the stage scrolls away with the page, and a stop brought into
+ * view lands just under the header instead of under a stage that is no longer there.
+ * Unlayered, so it wins over the utilities on those elements (components/tours).
+ */
+@media (max-height: 40rem) and (width < 64rem) {
+  [data-tour-stage="playing"] {
+    position: relative;
+    top: auto;
+  }
+
+  [data-tour-stop] {
+    scroll-margin-top: 5rem;
   }
 }
 
