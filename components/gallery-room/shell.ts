@@ -5,17 +5,21 @@
 import {
   BoxGeometry,
   Color,
+  DoubleSide,
+  Float32BufferAttribute,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  Vector3,
 } from "three";
-import type { Texture } from "three";
+import type { BufferGeometry, Texture } from "three";
 import { irradianceAt } from "./bake";
 import type { BakeLighting, BakeOccluder, BakeSurface } from "./bake";
 import { createReflectiveFloor } from "./floor";
 import type { ReflectiveFloor } from "./floor";
 import type { BakeQueue, SceneKit } from "./kit";
 import type { WallId } from "./layout";
+import { clamp } from "./math";
 import { quadGeometry } from "./surfaces";
 import {
   createOakTexture,
@@ -96,7 +100,8 @@ export function buildShell(
 
   buildEntrance(kit, bakes, lighting, wallMaterialFor, addBaseboard);
 
-  // Ceiling: darker than the walls so the room closes in above the picture lights.
+  // Ceiling: a little darker than the walls so the room closes in above the picture lights,
+  // but still read as plaster rather than a black void.
   {
     const ceiling = surfaces.ceiling;
     const lightMap = track(
@@ -116,7 +121,7 @@ export function buildShell(
         PLASTER_TILE,
       ),
     );
-    scene.add(new Mesh(geometry, wallMaterialFor(lightMap, 0x5c5650)));
+    scene.add(new Mesh(geometry, wallMaterialFor(lightMap, 0x9a948c)));
   }
 
   const floorSurface = surfaces.floor;
@@ -211,53 +216,178 @@ function buildEntrance(
   addBaseboard(surface, 0, mid - DOOR_HALF_WIDTH);
   addBaseboard(surface, mid + DOOR_HALF_WIDTH, surface.uLength);
 
-  // Door reveal and the next room: unlit plaster and floor fading into the dark.
-  const revealDepth = 0.42;
+  // The doorway's depth (wall thickness) and the next room behind it. Neither is in the bake:
+  // both are shaded from the light that reaches the doorway, falling off into the dark.
   const z = layout.depth / 2;
-  const revealLight = irradianceAt([0, 1.6, z - 0.05], [0, 0, -1], lighting);
-  const reveal = track(
-    new MeshBasicMaterial({
-      color: new Color(
-        (0.8 * revealLight[0] * 0.5) / Math.PI,
-        (0.76 * revealLight[1] * 0.5) / Math.PI,
-        (0.68 * revealLight[2] * 0.5) / Math.PI,
-      ),
-    }),
+  const light = irradianceAt([0, 1.6, z - 0.05], [0, 0, -1], lighting);
+  const spill = new Color(
+    (0.8 * light[0] * 0.5) / Math.PI,
+    (0.76 * light[1] * 0.5) / Math.PI,
+    (0.68 * light[2] * 0.5) / Math.PI,
   );
-  const side = track(new PlaneGeometry(revealDepth, DOOR_HEIGHT));
-  const leftReveal = new Mesh(side, reveal);
-  leftReveal.position.set(
-    -DOOR_HALF_WIDTH,
-    DOOR_HEIGHT / 2,
-    z + revealDepth / 2,
+  const shaded = track(
+    new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }),
   );
-  leftReveal.rotation.y = Math.PI / 2;
-  const rightReveal = new Mesh(side, reveal);
-  rightReveal.position.set(
-    DOOR_HALF_WIDTH,
-    DOOR_HEIGHT / 2,
-    z + revealDepth / 2,
-  );
-  rightReveal.rotation.y = -Math.PI / 2;
-  const soffit = new Mesh(
-    track(new PlaneGeometry(DOOR_HALF_WIDTH * 2, revealDepth)),
-    reveal,
-  );
-  soffit.position.set(0, DOOR_HEIGHT, z + revealDepth / 2);
-  soffit.rotation.x = Math.PI / 2;
-  scene.add(leftReveal, rightReveal, soffit);
+  const addShaded = (
+    geometry: BufferGeometry,
+    shade: (p: Vector3) => number,
+    tint = spill,
+  ) => {
+    paintVertices(geometry, (p, out) =>
+      out.copy(tint).multiplyScalar(shade(p)),
+    );
+    scene.add(new Mesh(track(geometry), shaded));
+  };
 
-  const beyondFloor = new Mesh(
-    track(new PlaneGeometry(9, 7)),
-    track(new MeshBasicMaterial({ color: 0x0a0806 })),
+  // Jambs and soffit: lit like the wall at the room side, dimmer towards the next room.
+  const depthShade = (p: Vector3) =>
+    0.95 - 0.4 * clamp((p.z - z) / REVEAL_DEPTH, 0, 1);
+  for (const sign of [-1, 1]) {
+    const jamb = new PlaneGeometry(REVEAL_DEPTH, DOOR_HEIGHT, 4, 1);
+    jamb.rotateY((sign * Math.PI) / 2);
+    jamb.translate(
+      sign * DOOR_HALF_WIDTH,
+      DOOR_HEIGHT / 2,
+      z + REVEAL_DEPTH / 2,
+    );
+    addShaded(jamb, depthShade);
+  }
+  const soffit = new PlaneGeometry(DOOR_HALF_WIDTH * 2, REVEAL_DEPTH, 1, 4);
+  soffit.rotateX(Math.PI / 2);
+  soffit.translate(0, DOOR_HEIGHT, z + REVEAL_DEPTH / 2);
+  addShaded(soffit, (p) => 0.72 * depthShade(p));
+
+  // A slim dark casing around the opening gives the corner between wall and jamb a clean line.
+  const casing = track(new MeshBasicMaterial({ color: 0x15120f }));
+  const trim = (width: number, height: number, x: number, y: number) => {
+    const mesh = new Mesh(
+      track(new BoxGeometry(width, height, CASING_PROUD)),
+      casing,
+    );
+    mesh.position.set(x, y, z - CASING_PROUD / 2);
+    scene.add(mesh);
+  };
+  for (const sign of [-1, 1]) {
+    trim(
+      CASING_WIDTH,
+      DOOR_HEIGHT + CASING_WIDTH,
+      sign * (DOOR_HALF_WIDTH + CASING_WIDTH / 2),
+      (DOOR_HEIGHT + CASING_WIDTH) / 2,
+    );
+  }
+  trim(DOOR_HALF_WIDTH * 2, CASING_WIDTH, 0, DOOR_HEIGHT + CASING_WIDTH / 2);
+
+  // The next room: a closed gallery with its lights turned low. Light from this room carries
+  // a little way through the door; one dim picture light shows a work on the far wall.
+  const near = z + REVEAL_DEPTH;
+  const far = near + NEXT_ROOM_DEPTH;
+  const halfWidth = NEXT_ROOM_WIDTH / 2;
+  const height = layout.height;
+  const fade = (p: Vector3) =>
+    0.22 + 0.78 * Math.exp(-Math.max(0, p.z - z) / 2.4);
+  const segments = 12;
+
+  // The floor starts under the jambs, so the threshold is covered too.
+  const floor = new PlaneGeometry(NEXT_ROOM_WIDTH, far - z, 4, segments);
+  floor.rotateX(-Math.PI / 2);
+  floor.translate(0, -0.002, (z + far) / 2);
+  // Brightest in the pool of light that falls through the doorway.
+  addShaded(
+    floor,
+    (p) => (0.5 + 0.5 * Math.exp(-((p.x / 1.6) ** 2))) * 0.42 * fade(p),
+    FLOOR_TINT,
   );
-  beyondFloor.rotation.x = -Math.PI / 2;
-  beyondFloor.position.set(0, -0.002, z + 3.5);
-  const beyondWall = new Mesh(
-    track(new PlaneGeometry(9, layout.height)),
-    track(new MeshBasicMaterial({ color: 0x1a1612 })),
+
+  const ceiling = new PlaneGeometry(
+    NEXT_ROOM_WIDTH,
+    NEXT_ROOM_DEPTH,
+    1,
+    segments,
   );
-  beyondWall.position.set(0, layout.height / 2, z + 7);
-  beyondWall.rotation.y = Math.PI;
-  scene.add(beyondFloor, beyondWall);
+  ceiling.rotateX(Math.PI / 2);
+  ceiling.translate(0, height, (near + far) / 2);
+  addShaded(ceiling, (p) => 0.4 * fade(p));
+
+  for (const sign of [-1, 1]) {
+    const wall = new PlaneGeometry(NEXT_ROOM_DEPTH, height, segments, 4);
+    wall.rotateY((sign * Math.PI) / 2);
+    wall.translate(sign * halfWidth, height / 2, (near + far) / 2);
+    // A touch brighter low down, where the light through the door lands.
+    addShaded(wall, (p) => 0.75 * fade(p) * (1 - 0.3 * (p.y / height)));
+  }
+
+  // The far wall, with a soft oval of light around the work hung there.
+  const workY = 1.55;
+  const farWall = new PlaneGeometry(NEXT_ROOM_WIDTH, height, 24, 16);
+  farWall.translate(0, height / 2, far);
+  addShaded(farWall, (p) => {
+    const glow = Math.exp(
+      -((p.x / 1.05) ** 2) - ((p.y - workY - 0.15) / 1.1) ** 2,
+    );
+    return 0.75 * fade(p) + 1.1 * glow;
+  });
+  const work = new Mesh(
+    track(new BoxGeometry(0.95, 0.72, 0.04)),
+    track(new MeshBasicMaterial({ color: 0x17130f })),
+  );
+  work.position.set(0, workY, far - 0.03);
+  const canvas = new Mesh(
+    track(new PlaneGeometry(0.81, 0.58)),
+    track(
+      new MeshBasicMaterial({
+        color: new Color(spill)
+          .multiplyScalar(0.55)
+          .lerp(new Color(0.05, 0.035, 0.02), 0.5),
+      }),
+    ),
+  );
+  canvas.position.set(0, workY, far - 0.06);
+  canvas.rotation.y = Math.PI;
+  scene.add(work, canvas);
+
+  // The other side of the entrance wall, seen only at a slant through the doorway.
+  for (const sign of [-1, 1]) {
+    const back = new PlaneGeometry(halfWidth - DOOR_HALF_WIDTH, height, 1, 1);
+    back.translate(
+      (sign * (DOOR_HALF_WIDTH + halfWidth)) / 2,
+      height / 2,
+      near,
+    );
+    addShaded(back, () => 0.2);
+  }
+  const lintel = new PlaneGeometry(
+    DOOR_HALF_WIDTH * 2,
+    height - DOOR_HEIGHT,
+    1,
+    1,
+  );
+  lintel.translate(0, (height + DOOR_HEIGHT) / 2, near);
+  addShaded(lintel, () => 0.2);
+}
+
+const REVEAL_DEPTH = 0.42;
+const CASING_WIDTH = 0.05;
+const CASING_PROUD = 0.012;
+const NEXT_ROOM_WIDTH = 6.5;
+const NEXT_ROOM_DEPTH = 7;
+/** Oak, unlit: the next room's floor reads as the same boards in shadow. */
+const FLOOR_TINT = new Color(0.16, 0.1, 0.06);
+
+/** Writes a per-vertex colour from each vertex's position. */
+function paintVertices(
+  geometry: BufferGeometry,
+  colorAt: (position: Vector3, out: Color) => Color,
+) {
+  const positions = geometry.getAttribute("position");
+  const colors = new Float32Array(positions.count * 3);
+  const p = new Vector3();
+  const c = new Color();
+  for (let i = 0; i < positions.count; i++) {
+    p.fromBufferAttribute(positions, i);
+    colorAt(p, c);
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+  geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
 }

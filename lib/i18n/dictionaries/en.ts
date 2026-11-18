@@ -52,6 +52,11 @@ export const en = {
     next: "Next work",
     viewArtwork: "View artwork",
   },
+  statement: {
+    eyebrow: "Visitor notes",
+    body: "Every work in Gallery Atlas is in the public domain, from the open collection of the Art Institute of Chicago. Take your time with them, and keep the ones you want to come back to.",
+    link: "About this project",
+  },
   explore: {
     eyebrow: "The collection",
     heading: "Explore the collection",

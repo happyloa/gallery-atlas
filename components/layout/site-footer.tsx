@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
@@ -69,6 +70,15 @@ export function SiteFooter({
           </p>
         </div>
       </Container>
+
+      {/* The name set large along the bottom edge, like lettering on a gallery wall. */}
+      <div aria-hidden="true" className="overflow-hidden">
+        <Reveal>
+          <p className="pb-[0.08em] text-center font-serif text-[clamp(3.5rem,17.2vw,15.5rem)] leading-[1.05] tracking-[-0.035em] whitespace-nowrap text-ink">
+            Gallery Atlas
+          </p>
+        </Reveal>
+      </div>
     </footer>
   );
 }

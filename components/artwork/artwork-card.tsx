@@ -23,10 +23,13 @@ export function ArtworkCard({
   artwork,
   locale,
   action,
+  revealDelay,
 }: {
   artwork: Artwork;
   locale: Locale;
   action?: ReactNode;
+  /** Uncover the image when it scrolls into view, after this many milliseconds. */
+  revealDelay?: number;
 }) {
   return (
     <article className="group relative">
@@ -34,6 +37,7 @@ export function ArtworkCard({
         <ArtworkImage
           image={artwork.image}
           sizes={CARD_SIZES}
+          reveal={revealDelay ?? false}
           className={`${fitClass(artwork.image.aspectRatio, CELL_RATIO)} shadow-[0_18px_30px_-18px_rgb(34_33_31/0.55)] transition-transform duration-300 ease-gallery group-hover:-translate-y-1`}
           fallbackClassName="max-h-full w-full"
         />

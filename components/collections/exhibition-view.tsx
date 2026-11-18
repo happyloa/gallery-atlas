@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { ArtworkCard } from "@/components/artwork/artwork-card";
+import { Reveal } from "@/components/motion/reveal";
 import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -224,13 +225,14 @@ export function ExhibitionView({ id }: { id: string }) {
         </EmptyState>
       ) : (
         <ul className="mt-12 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {records.artworks.map((artwork) => {
+          {records.artworks.map((artwork, index) => {
             const label = format(t.removeWork, { title: artwork.title });
             return (
-              <li key={artwork.id}>
+              <Reveal as="li" key={artwork.id} delay={(index % 4) * 90}>
                 <ArtworkCard
                   artwork={artwork}
                   locale={locale}
+                  revealDelay={(index % 4) * 90}
                   action={
                     <button
                       type="button"
@@ -250,7 +252,7 @@ export function ExhibitionView({ id }: { id: string }) {
                     </button>
                   }
                 />
-              </li>
+              </Reveal>
             );
           })}
         </ul>

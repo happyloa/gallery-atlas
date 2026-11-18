@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ExploreSection } from "@/components/discover/explore-section";
 import { HeroGallery } from "@/components/discover/hero-gallery";
+import { Statement } from "@/components/discover/statement";
 import { getFeaturedArtworks } from "@/lib/artic/featured";
 import { parseSearchQuery } from "@/lib/artic/queries";
 import {
@@ -92,6 +93,7 @@ export default async function Home({
               })
         }
       />
+      <Statement locale={locale} dict={dict} />
       <ExploreSection
         locale={locale}
         dict={dict}

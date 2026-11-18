@@ -102,33 +102,40 @@ export function HeroGallery({ artworks, eyebrow, note }: HeroGalleryProps) {
       {/* From lg the text floats over the room; only the text itself takes clicks. */}
       <div className="relative mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-5 pt-2 pb-12 sm:px-8 sm:pb-14 lg:pointer-events-none lg:absolute lg:inset-x-0 lg:bottom-0 lg:flex-row lg:items-end lg:justify-between lg:px-12 lg:*:pointer-events-auto">
         <div className="max-w-2xl">
-          <p className="text-xs font-medium tracking-[0.2em] text-gallery-muted uppercase">
+          <p className="animate-rise text-xs font-medium tracking-[0.2em] text-gallery-muted uppercase [animation-delay:var(--intro-delay)]">
             {eyebrow}
           </p>
           <h1
             id="hero-heading"
-            className="mt-4 font-serif text-[2.6rem] leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl [html:lang(zh-Hant-TW)_&]:leading-[1.2] [html:lang(zh-Hant-TW)_&]:tracking-normal"
+            className="mt-4 -mb-[0.14em] overflow-hidden pb-[0.14em] font-serif text-[2.6rem] leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl [html:lang(zh-Hant-TW)_&]:leading-[1.2] [html:lang(zh-Hant-TW)_&]:tracking-normal"
           >
-            {t.headline}
+            <span className="block animate-mask-rise [animation-delay:calc(var(--intro-delay)+80ms)]">
+              {t.headline}
+            </span>
           </h1>
-          <p className="mt-5 max-w-lg text-base leading-7 text-gallery-text/85 sm:text-lg">
+          <p className="mt-5 max-w-lg animate-rise text-base leading-7 text-gallery-text/85 [animation-delay:calc(var(--intro-delay)+260ms)] sm:text-lg">
             {t.lede}
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <a href="#explore" className={buttonStyles({ tone: "dark" })}>
+          <div className="mt-8 flex animate-rise flex-wrap items-center gap-4 [animation-delay:calc(var(--intro-delay)+380ms)]">
+            <a
+              href="#explore"
+              className={cn(buttonStyles({ tone: "dark" }), "group/cta")}
+            >
               {t.cta}
-              <ArrowDown aria-hidden="true" className="size-4" />
+              <span aria-hidden="true" className="-my-1 overflow-hidden py-1">
+                <ArrowDown className="size-4 animate-arrow-loop group-hover/cta:animate-[arrow-loop_1.6s_var(--ease-curtain)_infinite]" />
+              </span>
             </a>
           </div>
           {note ? (
-            <p className="mt-6 max-w-md text-xs leading-5 text-gallery-muted">
+            <p className="mt-6 max-w-md animate-fade-in text-xs leading-5 text-gallery-muted [animation-delay:calc(var(--intro-delay)+600ms)]">
               {note}
             </p>
           ) : null}
         </div>
 
         {active ? (
-          <div className="w-full max-w-sm shrink-0 lg:w-80">
+          <div className="w-full max-w-sm shrink-0 animate-rise [animation-delay:calc(var(--intro-delay)+500ms)] lg:w-80">
             <div
               aria-live="polite"
               className="border-l-2 border-accent bg-paper/95 py-4 pr-5 pl-4 text-ink shadow-xl"

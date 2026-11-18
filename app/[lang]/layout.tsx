@@ -3,6 +3,8 @@ import { Instrument_Sans, Newsreader, Noto_Serif_TC } from "next/font/google";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { IntroCurtain } from "@/components/motion/intro-curtain";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { isLocale, LOCALE_TAGS, LOCALES, OG_LOCALES } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { I18nProvider } from "@/lib/i18n/provider";
@@ -76,9 +78,13 @@ export default async function LocaleLayout({
   return (
     <html
       lang={LOCALE_TAGS[lang]}
+      // Lets the router jump, not glide, to the top of a new page despite smooth anchors.
+      data-scroll-behavior="smooth"
       className={`${newsreader.variable} ${instrumentSans.variable} ${notoSerifTc.variable}`}
     >
       <body className="flex min-h-svh flex-col">
+        <IntroCurtain />
+        <MotionProvider />
         <I18nProvider locale={lang} dict={dict}>
           <SiteHeader />
           <main id="main" className="flex-1">

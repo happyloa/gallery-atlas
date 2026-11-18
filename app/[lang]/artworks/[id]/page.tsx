@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ArtworkImage } from "@/components/artwork/artwork-image";
+import { Reveal } from "@/components/motion/reveal";
 import { ZoomDialog } from "@/components/artwork/zoom-dialog";
 import { ExhibitionPicker } from "@/components/collections/exhibition-picker";
 import { FavoriteButton } from "@/components/collections/favorite-button";
@@ -207,7 +208,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               image={artwork.image}
               sizes="(min-width: 1024px) 55vw, 92vw"
               priority
-              className={`${artwork.image.aspectRatio >= 1 ? "h-auto max-h-[70svh] w-full" : "h-[min(60svh,640px)] w-auto max-w-full"} object-contain shadow-[0_30px_50px_-28px_rgb(34_33_31/0.6)]`}
+              className={`${artwork.image.aspectRatio >= 1 ? "h-auto max-h-[70svh] w-full" : "h-[min(60svh,640px)] w-auto max-w-full"} object-contain shadow-[0_30px_50px_-28px_rgb(34_33_31/0.6)] motion-safe:animate-curtain-up motion-safe:[animation-delay:calc(var(--intro-delay)*0.9)]`}
               fallbackClassName="w-full max-w-xl"
             />
           </div>
@@ -224,7 +225,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
           </div>
         </div>
 
-        <div className="lg:pt-6">
+        <div className="animate-rise [animation-delay:calc(var(--intro-delay)+250ms)] lg:pt-6">
           <h1
             lang="en"
             className="font-serif text-4xl leading-[1.08] text-balance italic sm:text-5xl"
@@ -273,7 +274,8 @@ export default async function ArtworkPage({ params }: { params: Params }) {
 
       {artwork.description ? (
         <Container className="mt-16 sm:mt-24">
-          <section
+          <Reveal
+            as="section"
             aria-labelledby="about-work"
             className="grid gap-6 border-t border-line pt-10 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-12"
           >
@@ -302,7 +304,7 @@ export default async function ArtworkPage({ params }: { params: Params }) {
               </div>
               <p className="mt-6 text-xs text-muted">{t.descriptionCredit}</p>
             </div>
-          </section>
+          </Reveal>
         </Container>
       ) : null}
     </article>

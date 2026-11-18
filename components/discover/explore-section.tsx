@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
 import type { SearchQueryError } from "@/lib/artic/queries";
 import { toSearchParams } from "@/lib/artic/search-url";
@@ -31,11 +32,11 @@ export function ExploreSection({
     <section
       id="explore"
       aria-labelledby="explore-heading"
-      className="scroll-mt-6 bg-paper py-20 sm:py-28"
+      className="scroll-mt-16 bg-paper py-20 sm:py-28"
     >
       <Container>
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-end lg:gap-16">
-          <div>
+          <Reveal>
             <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">
               {dict.explore.eyebrow}
             </p>
@@ -45,8 +46,10 @@ export function ExploreSection({
             >
               {dict.explore.heading}
             </h2>
-          </div>
-          <ExploreControls query={query} />
+          </Reveal>
+          <Reveal delay={120}>
+            <ExploreControls query={query} />
+          </Reveal>
         </div>
 
         <Suspense

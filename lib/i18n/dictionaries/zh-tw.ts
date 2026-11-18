@@ -49,6 +49,11 @@ export const zhTw: Dictionary = {
     next: "下一件作品",
     viewArtwork: "查看作品",
   },
+  statement: {
+    eyebrow: "參觀須知",
+    body: "Gallery Atlas 裡的每件作品都屬於公有領域，來自芝加哥藝術博物館的開放館藏。慢慢看，把想再回來看的作品收進自己的收藏。",
+    link: "關於這個專案",
+  },
   explore: {
     eyebrow: "館藏",
     heading: "探索館藏",

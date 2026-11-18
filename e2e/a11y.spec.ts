@@ -5,8 +5,32 @@ import { expect, gotoReady, test } from "./fixtures";
 const STORAGE_KEY = "gallery-atlas:collection";
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
+/**
+ * Waits for entrance animations (scroll reveals, fades) to finish, so axe measures text at
+ * its final colour rather than halfway through a fade-in. Looping and scroll-driven
+ * animations are skipped (the statement text is checked in its unlit colour, which passes).
+ */
+async function settleAnimations(page: Page) {
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter(
+            (a) =>
+              a.timeline === document.timeline &&
+              a.effect?.getComputedTiming().endTime !== Infinity,
+          )
+          .map((a) => a.finished.catch(() => undefined)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]),
+  );
+}
+
 /** Runs axe against the page and fails with a readable list of what it found. */
 async function expectAccessible(page: Page, label: string) {
+  await settleAnimations(page);
   const { violations } = await new AxeBuilder({ page })
     .withTags(TAGS)
     .analyze();

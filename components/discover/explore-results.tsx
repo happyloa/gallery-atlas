@@ -3,6 +3,7 @@ import { ArtworkCard } from "@/components/artwork/artwork-card";
 import { FavoriteButton } from "@/components/collections/favorite-button";
 import { buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Reveal } from "@/components/motion/reveal";
 import { searchArtworks } from "@/lib/artic/artworks";
 import type { SearchResult } from "@/lib/artic/artworks";
 import { isAicError } from "@/lib/artic/client";
@@ -178,14 +179,15 @@ export async function ExploreResults({
     <>
       <Summary locale={locale} dict={dict} query={query} result={result} />
       <ul className="mt-14 grid grid-cols-1 gap-x-8 gap-y-16 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {result.artworks.map((artwork) => (
-          <li key={artwork.id}>
+        {result.artworks.map((artwork, index) => (
+          <Reveal as="li" key={artwork.id} delay={(index % 4) * 90}>
             <ArtworkCard
               artwork={artwork}
               locale={locale}
+              revealDelay={(index % 4) * 90}
               action={<FavoriteButton artworkId={artwork.id} title={artwork.title} />}
             />
-          </li>
+          </Reveal>
         ))}
       </ul>
       <Pagination
