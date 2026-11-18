@@ -69,7 +69,7 @@ Worker 已用 Workers Builds 連上這個 repo：push 到 `main` 會自動建置
 
 - 只顯示 `is_public_domain` 為 `true` 且有圖片的作品，圖片直接連結館方 IIIF。
 - 作品 metadata 為 CC0。作品與藝術家的說明是 CC BY 4.0，網站上有標示出處。圖片使用依館方的 [Image Licensing](https://www.artic.edu/image-licensing) 與 [Terms](https://www.artic.edu/terms)。
-- 本 repo 的程式碼尚未選定授權。
+- 本 repo 的程式碼採用 [MIT 授權](LICENSE)，只涵蓋程式碼；作品資料與圖片依上面列的館方授權。
 
 ## 已知限制
 
