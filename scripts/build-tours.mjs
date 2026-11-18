@@ -19,12 +19,25 @@ const toTaiwan = OpenCC.Converter({ from: "cn", to: "twp" });
 const hasChinese = (text) => /[一-鿿]/.test(text ?? "");
 const tidy = (text) => (text ?? "").replace(/\s+/g, " ").trim();
 
+const ATTEMPTS = 3;
+// The feed carried 33 Chinese transcripts when this was written. Far fewer means its format
+// changed, and deploying then would drop the Chinese text from every tour.
+const MIN_TRANSCRIPTS = 20;
+
 async function loadFeed() {
-  const response = await fetch(FEED, {
-    headers: { "User-Agent": "GalleryAtlas/0.1" },
-  });
-  if (!response.ok) throw new Error(`Feed answered ${response.status}`);
-  return response.json();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(FEED, {
+        headers: { "User-Agent": "GalleryAtlas/0.1" },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) throw new Error(`Feed answered ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      if (attempt === ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
 }
 
 const chineseOf = (item) =>
@@ -176,20 +189,15 @@ function writeTranscripts(app) {
     );
     written++;
   }
+  if (written < MIN_TRANSCRIPTS)
+    throw new Error(`Only ${written} Chinese transcripts in the feed`);
   console.log(`public/tour-transcripts: ${written} Chinese transcripts`);
 }
 
 const mode = process.argv[2];
-try {
-  const app = await loadFeed();
-  if (mode === "--index") writeIndex(app);
-  else if (mode === "--transcripts") writeTranscripts(app);
-  else throw new Error("Pass --index or --transcripts");
-} catch (error) {
-  // A deploy should not fail over optional text: pages fall back to the English transcript.
-  if (mode === "--transcripts") {
-    console.warn(`Skipping Chinese transcripts: ${error.message}`);
-  } else {
-    throw error;
-  }
-}
+// A failure stops the deploy on purpose: the version already online keeps its transcripts,
+// while a new one without them would quietly fall back to English.
+const app = await loadFeed();
+if (mode === "--index") writeIndex(app);
+else if (mode === "--transcripts") writeTranscripts(app);
+else throw new Error("Pass --index or --transcripts");

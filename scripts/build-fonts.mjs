@@ -26,11 +26,13 @@ async function download(url) {
     try {
       const response = await fetch(url, {
         headers: { "User-Agent": BROWSER },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error(`${url} answered ${response.status}`);
       return response;
     } catch (error) {
       if (attempt === ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
     }
   }
 }

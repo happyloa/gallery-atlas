@@ -16,6 +16,7 @@ export default defineConfig({
         "!/_next/static/*",
         "!/*/_next/static/*",
         "!/fonts/*",
+        "!/tour-transcripts/*",
       ],
     },
     env: {

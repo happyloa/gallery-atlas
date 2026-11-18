@@ -11,7 +11,10 @@ export default defineConfig(({ command }) => {
 
   return {
     define: {
-      ...(fixtures ? { "process.env.AIC_FIXTURES": JSON.stringify("1") } : {}),
+      // A build compiles the switch to off, so the fixture branch is dropped from the bundle.
+      ...(command === "build" || fixtures
+        ? { "process.env.AIC_FIXTURES": JSON.stringify(fixtures ? "1" : "") }
+        : {}),
       // Pages cached at the edge belong to one build (see worker/edge-cache.ts).
       ...(command === "build"
         ? {

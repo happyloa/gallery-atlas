@@ -34,7 +34,7 @@ npm run build
 npm run deploy       # 建置並部署到 Cloudflare Workers
 ```
 
-環境變數（只在伺服器端使用，範本見 `.env.example`）：
+環境變數（只在伺服器端使用）。前兩個的範本在 `.env.example`，`AIC_FIXTURES` 要設在 shell 裡，PowerShell 是 `$env:AIC_FIXTURES=1; npm run dev`：
 
 | 變數                | 用途                                                                 |
 | ------------------- | -------------------------------------------------------------------- |

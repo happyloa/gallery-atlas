@@ -1,6 +1,7 @@
-name: Live API smoke test
+name: Live smoke test
 
-# Checks the real Art Institute of Chicago API still answers the way the site expects.
+# Checks the real Art Institute of Chicago API still answers the way the site expects, and
+# that the deployed site still serves what only the production Worker has.
 # Kept apart from CI so an outage at the museum never blocks a merge.
 on:
   workflow_dispatch:
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   smoke:
+    name: Museum API
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -22,3 +24,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:smoke
+
+  site:
+    name: Deployed site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - run: node scripts/check-live.mjs https://gallery-atlas.piafyoyo06.workers.dev
