@@ -9,7 +9,8 @@ import { Pagination } from "@/components/discover/pagination";
 import { ResultsSkeleton } from "@/components/discover/results-skeleton";
 import { Reveal } from "@/components/motion/reveal";
 import { Container } from "@/components/ui/container";
-import { ArrowLeft, ArrowUpRight } from "@/components/ui/icons";
+import { ArrowLeft } from "@/components/ui/icons";
+import { OutLink } from "@/components/library/parts";
 import { getArtist, searchArtworks } from "@/lib/artic/artworks";
 import { describeFailure } from "@/lib/artic/error-reason";
 import { EMPTY_QUERY, parseId, parseSearchQuery } from "@/lib/artic/queries";
@@ -24,7 +25,6 @@ import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { format, formatCount } from "@/lib/i18n/format";
-import { EXTERNAL_REL } from "@/lib/utils";
 
 type Params = Promise<{ lang: string; id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -94,11 +94,11 @@ export default async function ArtistPage({
     <article className="pb-24 sm:pb-32">
       <Container className="pt-8 sm:pt-10">
         <Link
-          href={`${localizePath(locale, "/")}#explore`}
+          href={localizePath(locale, "/artists")}
           className="inline-flex min-h-11 items-center gap-2 text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
         >
           <ArrowLeft className="size-4" />
-          {dict.detail.back}
+          {dict.artistIndex.heading}
         </Link>
       </Container>
 
@@ -118,16 +118,27 @@ export default async function ArtistPage({
               {years}
             </p>
           ) : null}
-          <a
-            href={artist.sourceUrl}
-            target="_blank"
-            rel={EXTERNAL_REL}
-            className="mt-8 inline-flex items-center gap-2 border-b border-ink/30 pb-1 text-sm transition-colors duration-300 ease-gallery hover:border-ink"
-          >
-            {t.viewAtMuseum}
-            <ArrowUpRight className="size-4" />
-            <span className="sr-only">{dict.site.opensInNewTab}</span>
-          </a>
+          {artist.altNames.length > 0 ? (
+            <p className="mt-5 max-w-xl text-sm leading-6 text-muted">
+              {dict.artistIndex.alsoKnownAs}：
+              <span lang="en">{artist.altNames.join("; ")}</span>
+            </p>
+          ) : null}
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
+            <OutLink href={artist.sourceUrl} dict={dict}>
+              {t.viewAtMuseum}
+            </OutLink>
+            {artist.ulanUrl ? (
+              <OutLink href={artist.ulanUrl} dict={dict}>
+                {dict.artistIndex.ulan}
+              </OutLink>
+            ) : null}
+            {artist.wikidataUrl ? (
+              <OutLink href={artist.wikidataUrl} dict={dict}>
+                {dict.artistIndex.wikidata}
+              </OutLink>
+            ) : null}
+          </div>
         </header>
 
         {artist.description ? (

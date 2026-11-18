@@ -11,6 +11,8 @@ import {
   ObjectRecord,
   OnView,
 } from "@/components/artwork/detail-extras";
+import { ArtworkResources } from "@/components/artwork/artwork-resources";
+import { OutLink } from "@/components/library/parts";
 import { Reveal } from "@/components/motion/reveal";
 import { ZoomDialog } from "@/components/artwork/zoom-dialog";
 import { ExhibitionPicker } from "@/components/collections/exhibition-picker";
@@ -280,13 +282,51 @@ export default async function ArtworkPage({ params }: { params: Params }) {
 
           <dl className="mt-10 border-b border-line">
             <Fact label={t.artist} value={artwork.artist} />
-            <Fact label={t.date} value={artwork.dateDisplay} />
+            <Fact
+              label={t.date}
+              value={
+                artwork.dateDisplay && artwork.dateQualifier
+                  ? `${artwork.dateDisplay} (${artwork.dateQualifier})`
+                  : artwork.dateDisplay
+              }
+            />
             <Fact label={t.type} value={artwork.type} />
             <Fact label={t.medium} value={artwork.medium} />
             <Fact label={t.dimensions} value={artwork.dimensions} />
             <Fact label={t.origin} value={artwork.origin} />
             <Fact label={t.creditLine} value={artwork.creditLine} />
+            <Fact
+              label={dict.workExtras.altTitles}
+              value={artwork.altTitles.join("; ") || null}
+            />
+            <Fact label={dict.workExtras.edition} value={artwork.edition} />
+            <Fact
+              label={dict.workExtras.reference}
+              value={artwork.referenceNumber}
+            />
+            {artwork.department ? (
+              <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-4 border-t border-line py-3 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+                <dt className="text-muted">{dict.workExtras.department}</dt>
+                <dd lang="en" className="min-w-0 break-words">
+                  <Link
+                    href={localizePath(
+                      locale,
+                      `/browse/departments/${artwork.department.id}`,
+                    )}
+                    prefetch={false}
+                    className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+                  >
+                    {artwork.department.title}
+                  </Link>
+                </dd>
+              </div>
+            ) : null}
           </dl>
+          <p className="mt-4 text-sm">
+            <OutLink href={artwork.manifestUrl} dict={dict}>
+              {dict.workExtras.manifest}
+            </OutLink>
+          </p>
           <OnView artwork={artwork} locale={locale} dict={dict} />
           <LookFurther artwork={artwork} locale={locale} dict={dict} />
           <Suspense fallback={null}>
@@ -330,6 +370,12 @@ export default async function ArtworkPage({ params }: { params: Params }) {
           </Reveal>
         </Container>
       ) : null}
+
+      <Container className="mt-16 sm:mt-24">
+        <Suspense fallback={null}>
+          <ArtworkResources artwork={artwork} locale={locale} dict={dict} />
+        </Suspense>
+      </Container>
 
       <Container className="mt-16 sm:mt-24">
         <ObjectRecord artwork={artwork} dict={dict} />

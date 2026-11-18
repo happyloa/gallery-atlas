@@ -65,6 +65,22 @@ export interface ArtworkDetail extends Artwork {
   onView: { gallery: string | null; galleryId: number | null } | null;
   /** Recordings the museum links to this work (audio guide stops, talks). */
   soundIds: string[];
+  /** Other records the museum links to this work. */
+  related: {
+    imageIds: string[];
+    videoIds: string[];
+    textIds: string[];
+    sectionIds: number[];
+    siteIds: number[];
+  };
+  altTitles: string[];
+  referenceNumber: string | null;
+  department: { id: string; title: string } | null;
+  edition: string | null;
+  /** What the date refers to, e.g. "Printed" or "Designed". */
+  dateQualifier: string | null;
+  /** IIIF Presentation manifest for this work. */
+  manifestUrl: string;
   /** The object record, as paragraphs of plain text (CC0 metadata). */
   record: {
     inscriptions: string[] | null;
@@ -84,6 +100,11 @@ export interface Artist {
   description: TextRun[][] | null;
   /** The artist's page on artic.edu. */
   sourceUrl: string;
+  altNames: string[];
+  type: string | null;
+  /** Getty Union List of Artist Names record. */
+  ulanUrl: string | null;
+  wikidataUrl: string | null;
 }
 
 /** An audio recording from the museum (hotlinked from artic.edu). */

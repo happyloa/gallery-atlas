@@ -59,6 +59,7 @@ export function SiteFooter({
             <li>{t.metadataLicense}</li>
             <li>{t.descriptionLicense}</li>
             <li>{t.imageLicense}</li>
+            <li>{dict.nav.museumLicense}</li>
           </ul>
           <p className="mt-6 text-sm">
             <Link

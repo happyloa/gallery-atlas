@@ -15,6 +15,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/galleries",
     "/tours",
     "/map",
+    "/artists",
+    "/browse",
+    "/read",
+    "/events",
+    "/visit",
+    "/shop",
+    "/media",
     ...FEATURED_ARTWORK_IDS.map((id) => `/artworks/${id}`),
   ];
   return paths.flatMap((path) =>

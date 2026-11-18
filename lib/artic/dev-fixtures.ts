@@ -8,7 +8,7 @@
  * three aggregation kinds it asks for, so filters and homepage counts work offline too.
  */
 import { previewArtworks } from "@/lib/fixtures/preview-artworks";
-import { ARTWORK_TYPES } from "./config";
+import { ARTWORK_TYPES, PLACE_FIELD } from "./config";
 import { TOUR_INDEX } from "./tour-index";
 
 const IIIF_URL = "https://www.artic.edu/iiif/2";
@@ -46,6 +46,21 @@ const EXTRAS: Record<number, Record<string, unknown>> = {
     gallery_title: "Gallery 240",
     gallery_id: 2147478672,
     sound_ids: ["d9683532-66fd-67c3-5588-021527d115af"],
+    alt_titles: ["La Grande Jatte"],
+    main_reference_number: "1926.224",
+    department_id: "PC-10",
+    department_title: "Painting and Sculpture of Europe",
+    category_ids: ["PC-10", "PC-831"],
+    classification_ids: ["TM-66"],
+    material_ids: ["TM-2451"],
+    technique_ids: ["TM-4273"],
+    style_ids: ["TM-12045"],
+    subject_ids: ["TM-10094"],
+    alt_image_ids: ["6782523e-056b-ba22-69f9-b5f1b59efcb6"],
+    video_ids: ["fae3fdc2-7a52-5fc4-c634-c2033f9b2a46"],
+    text_ids: ["291ea679-3a7f-4281-2a1b-101299c77407"],
+    section_ids: [36744351949],
+    site_ids: [22],
     inscriptions: "Inscribed lower right: Seurat",
     provenance_text:
       "The artist; given to his mother, Paris, 1891.\nSold to Lucie Cousturier, Paris, 1900.",
@@ -207,6 +222,12 @@ const AGENTS: Record<number, Record<string, unknown>> = {
     death_date: 1891,
     description:
       "<p>Fixture biography for <em>Georges Seurat</em>.</p><p>Second paragraph.</p>",
+    alt_titles: ["Georges Pierre Seurat"],
+    agent_type_id: 7,
+    agent_type_title: "Individual",
+    is_artist: true,
+    ulan_id: 500008873,
+    wikidata_id: "Q34013",
   },
   40610: {
     id: 40610,
@@ -214,6 +235,9 @@ const AGENTS: Record<number, Record<string, unknown>> = {
     birth_date: 1853,
     death_date: 1890,
     description: null,
+    agent_type_id: 7,
+    agent_type_title: "Individual",
+    is_artist: true,
   },
   35809: {
     id: 35809,
@@ -221,8 +245,292 @@ const AGENTS: Record<number, Record<string, unknown>> = {
     birth_date: 1840,
     death_date: 1926,
     description: null,
+    agent_type_id: 7,
+    agent_type_title: "Individual",
+    is_artist: true,
+  },
+  2601: {
+    id: 2601,
+    title: "Ancient Greek",
+    birth_date: null,
+    death_date: null,
+    description: null,
+    agent_type_id: 2,
+    agent_type_title: "Culture",
+    is_artist: true,
   },
 };
+
+type FixtureRecord = Record<string, unknown>;
+
+/** A session an hour from now, so "today" always has something on it. */
+const soonOccurrence = (): FixtureRecord => ({
+  id: "7fd63c7d-8353-55d2-af90-c832f2cf33d8",
+  title: "Spotlight Talk: Seurat",
+  title_display: "Spotlight Talk: <i>Seurat</i>",
+  event_id: 6504,
+  short_description: "A short talk in the galleries.",
+  image_url:
+    "https://artic-web.imgix.net/fixture/talk.jpg?rect=0%2C0%2C100%2C56&w=1200&h=675",
+  start_at: new Date(Date.now() + 3_600_000).toISOString(),
+  end_at: new Date(Date.now() + 5_400_000).toISOString(),
+  location: "Gallery 240",
+  is_private: false,
+});
+
+/** The museum's other records, by API resource. */
+const MUSEUM_RECORDS: Record<string, FixtureRecord[]> = {
+  articles: [
+    {
+      id: 826,
+      title: "Caillebotte and Seurat: Setting the Stage for Masterworks",
+      copy: " The opening paragraph of a fixture article.   The second paragraph of a fixture article.",
+    },
+  ],
+  highlights: [
+    {
+      id: 10,
+      title: "visions-of-america",
+      copy: " A fixture highlight about early American art.",
+    },
+  ],
+  publications: [
+    {
+      id: 135466,
+      title: "Monet Paintings and Drawings at the Art Institute of Chicago",
+      web_url:
+        "https://publications.artic.edu/monet/reader/paintingsanddrawings",
+      section_ids: [36744351949],
+    },
+  ],
+  sections: [
+    {
+      id: 36744351949,
+      title: "Cat. 44  Water Lilies, 1906",
+      web_url:
+        "https://publications.artic.edu/monet/reader/paintingsanddrawings/section/135621",
+      artwork_id: 16568,
+      publication_id: 135466,
+      publication_title:
+        "Monet Paintings and Drawings at the Art Institute of Chicago",
+      content:
+        '<section class="osci-tk-epub-section tombstone" id="tombstone">Water Lilies  \n1906\n\n</section><section class="osci-tk-epub-section curatorial_entry" id="curatorial_entry">The fixture catalogue essay.\n\nIts second paragraph.</section><section class="osci-tk-epub-section provenance" id="provenance">Sold to the museum, 1933.</section><section id="figures"></section>',
+    },
+  ],
+  "digital-publications": [
+    {
+      id: 34,
+      title: "Malangatana: Mozambique Modern",
+      web_url: "https://www.artic.edu/digital-publications/34/malangatana",
+      copy: "<h1>Malangatana</h1><p>A fixture digital publication.</p>",
+    },
+  ],
+  "digital-publication-articles": [
+    {
+      id: 9,
+      title: "The Complete Painter",
+      web_url: "https://www.artic.edu/digital-publications/34/malangatana/9",
+      copy: " A fixture essay.",
+      author_display: "Allison Langley",
+      digital_publication_id: 34,
+    },
+  ],
+  "printed-publications": [
+    {
+      id: 67,
+      title: "Italian Paintings before 1600",
+      web_url: "https://www.artic.edu/print-publications/67/italian-paintings",
+      copy: " A fixture catalogue in print.",
+    },
+  ],
+  "educator-resources": [
+    {
+      id: 177,
+      title: "Color Your World: Get Creative",
+      web_url: "https://www.artic.edu/educator-resources/177/color-your-world",
+      copy: " A fixture teaching resource.",
+    },
+  ],
+  "press-releases": [
+    {
+      id: 291,
+      title: "Monet and Chicago",
+      web_url: "https://www.artic.edu/press/press-releases/291/monet-and-chicago",
+      copy: " A fixture press release about Monet.",
+    },
+  ],
+  "generic-pages": [
+    {
+      id: 434,
+      title: "Art-Making Activities",
+      web_url: "https://www.artic.edu/art-making-activities",
+      copy: " A fixture museum page.",
+    },
+  ],
+  "landing-pages": [
+    { id: 13, title: "Research Center", web_url: null, copy: " A fixture landing page." },
+  ],
+  "static-pages": [{ id: 11, title: "Articles", web_url: "/articles" }],
+  agents: Object.values(AGENTS),
+  "agent-types": [
+    { id: 7, title: "Individual" },
+    { id: 2, title: "Culture" },
+  ],
+  "agent-roles": [{ id: 570, title: "Creator" }],
+  "artwork-date-qualifiers": [{ id: 65, title: "Created" }],
+  "artwork-place-qualifiers": [{ id: 50, title: "Place depicted:" }],
+  "artwork-types": ARTWORK_TYPES.map(({ id, label }) => ({ id, title: label })),
+  "category-terms": [
+    { id: "PC-10", title: "Painting and Sculpture of Europe", subtype: "department" },
+    { id: "TM-66", title: "oil on canvas", subtype: "classification" },
+    { id: "TM-2451", title: "oil paint", subtype: "material" },
+    { id: "TM-4273", title: "pointillism technique", subtype: "technique" },
+    { id: "TM-12045", title: "Pointillism", subtype: "style" },
+    { id: "TM-10094", title: "leisure", subtype: "subject" },
+    { id: "PC-831", title: "Essentials", subtype: "theme" },
+  ],
+  places: [
+    { id: 1, title: "France", tgn_id: 1000070 },
+    { id: 2, title: "Fontainebleau", tgn_id: 7008038 },
+  ],
+  events: [
+    {
+      id: 6504,
+      title: "Spotlight Talk: Seurat",
+      title_display: "Spotlight Talk: <i>Seurat</i>",
+      image_url:
+        "https://artic-web.imgix.net/fixture/talk.jpg?rect=0%2C0%2C100%2C56&w=1200&h=675",
+      short_description: "<p>A short talk in the galleries.</p>",
+      description:
+        "<p>A fixture event description.</p><p>Its second paragraph.</p>",
+      location: "Gallery 240",
+      program_ids: [106],
+      program_titles: ["Spotlight Talk"],
+      rsvp_link: "https://sales.artic.edu/events/6504",
+      is_free: true,
+      is_registration_required: true,
+      is_private: false,
+      date_display: "Daily, 12:00",
+      start_date: "2026-01-01T12:00:00-06:00",
+      end_date: "2099-01-10T13:00:00-06:00",
+    },
+    {
+      id: 6000,
+      title: "Members' Evening",
+      is_private: true,
+      start_date: "2099-01-01T12:00:00-06:00",
+      end_date: "2099-01-01T13:00:00-06:00",
+    },
+  ],
+  "event-programs": [{ id: 106, title: "Spotlight Talk" }],
+  hours: [
+    {
+      id: 39,
+      monday_is_closed: false,
+      monday_member_open: "PT10H00M",
+      monday_public_open: "PT11H00M",
+      monday_public_close: "PT17H00M",
+      tuesday_is_closed: true,
+      wednesday_is_closed: false,
+      wednesday_member_open: "PT10H00M",
+      wednesday_public_open: "PT11H00M",
+      wednesday_public_close: "PT17H00M",
+      thursday_is_closed: false,
+      thursday_member_open: "PT10H00M",
+      thursday_public_open: "PT11H00M",
+      thursday_public_close: "PT20H00M",
+      friday_is_closed: false,
+      friday_member_open: "PT10H00M",
+      friday_public_open: "PT11H00M",
+      friday_public_close: "PT17H00M",
+      saturday_is_closed: false,
+      saturday_member_open: "PT10H00M",
+      saturday_public_open: "PT11H00M",
+      saturday_public_close: "PT17H00M",
+      sunday_is_closed: false,
+      sunday_member_open: "PT10H00M",
+      sunday_public_open: "PT11H00M",
+      sunday_public_close: "PT17H00M",
+      additional_text: "The first hour of every day is reserved for members.",
+    },
+  ],
+  products: [
+    {
+      id: 292551,
+      title: "Seurat Monograph",
+      image_url: "https://shop-images.imgix.net/292551_2.jpg",
+      web_url: "https://shop.artic.edu/products/292551",
+      description: "<p>A fixture book.</p><ul><li>Format: Hardcover</li></ul>",
+      min_current_price: 30,
+      max_current_price: 30,
+      min_compare_at_price: 40,
+      artwork_ids: [27992],
+    },
+  ],
+  sounds: [
+    {
+      id: "94944845-143c-ace8-0517-79276f3c10a1",
+      title: "T99 Grande Jatte 27992",
+      display_title: "The Essentials Tour: La Grande Jatte",
+      content:
+        "https://www.artic.edu/assets/94944845-143c-ace8-0517-79276f3c10a1",
+      artwork_ids: [27992],
+      artwork_titles: ["A Sunday on La Grande Jatte — 1884"],
+    },
+  ],
+  texts: [
+    {
+      id: "291ea679-3a7f-4281-2a1b-101299c77407",
+      title: "Garfield_Park_Exhibition_of_Sculpture_[5706]",
+      content:
+        "https://www.artic.edu/assets/291ea679-3a7f-4281-2a1b-101299c77407",
+      artwork_ids: [],
+      artwork_titles: [],
+    },
+  ],
+  videos: [
+    {
+      id: "fae3fdc2-7a52-5fc4-c634-c2033f9b2a46",
+      title: "Fruit_Piece_Essentials",
+      content:
+        "https://www.artic.edu/assets/fae3fdc2-7a52-5fc4-c634-c2033f9b2a46",
+      artwork_ids: [],
+      artwork_titles: [],
+    },
+  ],
+  sites: [
+    {
+      id: 22,
+      title: "Seurat and the Making of La Grande Jatte",
+      description: "A fixture microsite.",
+      web_url: "http://archive.artic.edu/seurat/",
+      artwork_ids: [27992],
+      artwork_titles: ["A Sunday on La Grande Jatte — 1884"],
+    },
+  ],
+  images: [
+    { id: "6782523e-056b-ba22-69f9-b5f1b59efcb6", width: 1000, height: 700 },
+  ],
+};
+
+function museumRecords(resource: string): FixtureRecord[] {
+  if (resource === "event-occurrences")
+    return [
+      soonOccurrence(),
+      {
+        ...soonOccurrence(),
+        id: "9b1f8f52-1111-4a3c-9d3e-000000000001",
+        start_at: "2099-01-10T12:00:00-06:00",
+        end_at: "2099-01-10T13:00:00-06:00",
+      },
+    ];
+  if (resource === "galleries") return Object.values(GALLERIES);
+  if (resource === "exhibitions") return EXHIBITIONS;
+  return (MUSEUM_RECORDS[resource] ?? []).map((record) => ({
+    ...record,
+    api_model: resource,
+  }));
+}
 
 const FEATURED_IDS = new Set([27992, 28560, 16568]);
 
@@ -315,6 +623,13 @@ function matches(record: Raw, clause: Clause): boolean {
       ? actual.includes(expected)
       : actual === expected;
   }
+  if ("terms" in clause) {
+    const [field, expected] = Object.entries(clause.terms as Clause)[0] ?? [];
+    return (
+      field !== undefined &&
+      (expected as unknown[]).includes(valueOf(record, field))
+    );
+  }
   if ("exists" in clause) {
     const field = (clause.exists as { field: string }).field;
     return valueOf(record, field) != null;
@@ -322,13 +637,18 @@ function matches(record: Raw, clause: Clause): boolean {
   if ("range" in clause) {
     const [field, bounds] = Object.entries(clause.range as Clause)[0] ?? [];
     if (field === undefined) return true;
-    const value = valueOf(record, field);
-    if (typeof value !== "number") return false;
-    const b = bounds as {
-      gte?: number;
-      gt?: number;
-      lt?: number;
-      lte?: number;
+    const raw = valueOf(record, field);
+    // Dates compare as instants; the site sends them as YYYY-MM-DD.
+    const toNumber = (v: unknown) =>
+      typeof v === "string" ? Date.parse(v) : (v as number | undefined);
+    const value = toNumber(raw);
+    if (typeof value !== "number" || Number.isNaN(value)) return false;
+    const given = bounds as Record<"gte" | "gt" | "lt" | "lte", unknown>;
+    const b = {
+      gte: toNumber(given.gte),
+      gt: toNumber(given.gt),
+      lt: toNumber(given.lt),
+      lte: toNumber(given.lte),
     };
     return (
       (b.gte === undefined || value >= b.gte) &&
@@ -406,9 +726,12 @@ function aggregate(records: Raw[], aggs: Record<string, Clause>) {
       const counts = new Map<string | number, number>();
       for (const record of records) {
         const value = valueOf(record, field);
-        if (typeof value !== "string" && typeof value !== "number") continue;
-        const key = typeof value === "string" ? value.toLowerCase() : value;
-        counts.set(key, (counts.get(key) ?? 0) + 1);
+        for (const item of Array.isArray(value) ? value : [value]) {
+          if (typeof item !== "string" && typeof item !== "number") continue;
+          // Places are matched in lower case; ids and resource names keep theirs.
+          const key = field === PLACE_FIELD ? String(item).toLowerCase() : item;
+          counts.set(key, (counts.get(key) ?? 0) + 1);
+        }
       }
       result[name] = {
         buckets: [...counts.entries()]
@@ -496,6 +819,85 @@ function search(url: URL): unknown {
             .map((record) => select(record, fields))
         : [],
     ...(params.aggs ? { aggregations: aggregate(found, params.aggs) } : {}),
+    config: CONFIG,
+  };
+}
+
+/** Search over the museum's other records, for the clauses this site sends. */
+function searchMuseum(records: FixtureRecord[], params: SearchParams): unknown {
+  const bool = params.query?.bool;
+  const words =
+    bool?.must?.[0]?.multi_match?.query
+      ?.toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean) ?? [];
+  const found = records.filter((record) => {
+    if (!matches(record as Raw, { bool: { filter: bool?.filter } })) return false;
+    const haystack = Object.values(record)
+      .filter((value) => typeof value === "string")
+      .join(" ")
+      .toLowerCase();
+    return words.every((word) => haystack.includes(word));
+  });
+  const sortBy = params.sort?.[0];
+  const [sortField, order] = sortBy ? (Object.entries(sortBy)[0] ?? []) : [];
+  if (sortField)
+    found.sort((a, b) => {
+      const value = (r: FixtureRecord) => {
+        const v = r[sortField];
+        return typeof v === "string" ? Date.parse(v) : Number(v ?? 0);
+      };
+      return order === "desc" ? value(b) - value(a) : value(a) - value(b);
+    });
+  const limit = params.limit ?? 12;
+  const page = params.page ?? 1;
+  const fields = params.fields?.split(",") ?? null;
+  return {
+    pagination: {
+      total: found.length,
+      limit,
+      offset: (page - 1) * limit,
+      total_pages: limit > 0 ? Math.ceil(found.length / limit) : 0,
+      current_page: page,
+    },
+    data: found
+      .slice((page - 1) * limit, page * limit)
+      .map((record) => select(record as Raw, fields)),
+    ...(params.aggs
+      ? { aggregations: aggregate(found as Raw[], params.aggs) }
+      : {}),
+    config: CONFIG,
+  };
+}
+
+/** Lists, searches and single records for every resource without its own handler. */
+function museumResponse(url: URL): unknown {
+  const params = JSON.parse(
+    url.searchParams.get("params") ?? "{}",
+  ) as SearchParams & { resources?: string };
+  if (url.pathname === "/search")
+    return searchMuseum(
+      (params.resources ?? "").split(",").flatMap(museumRecords),
+      params,
+    );
+  const [, resource, rest] = url.pathname.split("/");
+  if (!resource) throw new FixtureNotFound();
+  const records = museumRecords(resource);
+  if (rest === "search") return searchMuseum(records, params);
+  if (rest) {
+    const record = records.find((r) => String(r.id) === rest);
+    if (!record) throw new FixtureNotFound();
+    return { data: select(record as Raw, fieldsOf(url)), config: CONFIG };
+  }
+  const ids = url.searchParams.get("ids")?.split(",");
+  const limit = Number(url.searchParams.get("limit") ?? 12);
+  const page = Number(url.searchParams.get("page") ?? 1);
+  const listed = ids
+    ? records.filter((r) => ids.includes(String(r.id)))
+    : records.slice((page - 1) * limit, page * limit);
+  return {
+    pagination: { total: ids ? listed.length : records.length, limit },
+    data: listed.map((record) => select(record as Raw, fieldsOf(url))),
     config: CONFIG,
   };
 }
@@ -589,14 +991,17 @@ export function fixtureResponse(path: string): unknown {
     return { data: record, config: CONFIG };
   }
 
-  if (url.pathname === "/articles/search") {
+  if (url.pathname === "/articles/search" && url.searchParams.has("q")) {
     return {
       pagination: { total: ARTICLES.length },
       data: ARTICLES,
       config: CONFIG,
     };
   }
-  if (url.pathname === "/digital-publications/search") {
+  if (
+    url.pathname === "/digital-publications/search" &&
+    url.searchParams.has("q")
+  ) {
     return { pagination: { total: 0 }, data: [], config: CONFIG };
   }
   if (url.pathname === "/autocomplete") {
@@ -614,7 +1019,7 @@ export function fixtureResponse(path: string): unknown {
     if (!record) throw new FixtureNotFound();
     return { data: record, config: CONFIG };
   }
-  throw new FixtureNotFound();
+  return museumResponse(url);
 }
 
 export function isFixtureNotFound(error: unknown): boolean {

@@ -108,7 +108,10 @@ export function toArtworks(
 }
 
 /** Like cleanText, but keeps single line breaks (artist_display puts dates on a second line). */
-function cleanMultiline(value: string | null | undefined, max = 400): string | null {
+function cleanMultiline(
+  value: string | null | undefined,
+  max = 400,
+): string | null {
   if (typeof value !== "string") return null;
   const lines = value
     .split(/\r?\n/)
@@ -116,11 +119,16 @@ function cleanMultiline(value: string | null | undefined, max = 400): string | n
     .filter(Boolean);
   if (lines.length === 0) return null;
   const joined = lines.join("\n");
-  return joined.length > max ? `${joined.slice(0, max - 1).trimEnd()}…` : joined;
+  return joined.length > max
+    ? `${joined.slice(0, max - 1).trimEnd()}…`
+    : joined;
 }
 
 /** Detail view of a displayable work, or null under the same rule as toArtwork. */
-export function toArtworkDetail(input: unknown, iiifBase: string | null): ArtworkDetail | null {
+export function toArtworkDetail(
+  input: unknown,
+  iiifBase: string | null,
+): ArtworkDetail | null {
   const artwork = toArtwork(input, iiifBase);
   if (!artwork || !iiifBase) return null;
   const raw = rawArtworkSchema.parse(input);
@@ -156,6 +164,27 @@ export function toArtworkDetail(input: unknown, iiifBase: string | null): Artwor
     soundIds: (extras.sound_ids ?? [])
       .filter((id): id is string => typeof id === "string" && UUID.test(id))
       .slice(0, MAX_SOUNDS),
+    related: {
+      imageIds: uuids(extras.alt_image_ids),
+      videoIds: uuids(extras.video_ids),
+      textIds: uuids(extras.text_ids),
+      sectionIds: positiveIds(extras.section_ids),
+      siteIds: positiveIds(extras.site_ids),
+    },
+    altTitles: cleanTags(extras.alt_titles, 6),
+    referenceNumber: cleanText(extras.main_reference_number, 60),
+    department:
+      extras.department_id && extras.department_title
+        ? {
+            id: extras.department_id,
+            title:
+              cleanText(extras.department_title, 120) ??
+              extras.department_title,
+          }
+        : null,
+    edition: cleanText(extras.edition, 300),
+    dateQualifier: cleanText(extras.date_qualifier_title, 60),
+    manifestUrl: `https://api.artic.edu/api/v1/artworks/${artwork.id}/manifest.json`,
     record: {
       inscriptions: cleanParagraphs(extras.inscriptions),
       provenance: cleanParagraphs(extras.provenance_text),
@@ -165,6 +194,16 @@ export function toArtworkDetail(input: unknown, iiifBase: string | null): Artwor
   };
 }
 
+const uuids = (values: readonly unknown[] | null | undefined): string[] =>
+  (values ?? []).filter(
+    (id): id is string => typeof id === "string" && UUID.test(id),
+  );
+
+const positiveIds = (values: readonly unknown[] | null | undefined): number[] =>
+  (values ?? []).filter(
+    (id): id is number => Number.isSafeInteger(id) && (id as number) > 0,
+  );
+
 /** How many of each kind of tag a detail page lists. */
 const TAG_LIMITS: Record<TagKind, number> = { style: 8, subject: 12, theme: 6 };
 
@@ -172,14 +211,18 @@ const TAG_LIMITS: Record<TagKind, number> = { style: 8, subject: 12, theme: 6 };
  * Tag strings that can double as exact search filters: trimmed, short enough to pass the
  * filter's own length check, and without case-insensitive duplicates.
  */
-export function cleanTags(values: readonly unknown[] | null | undefined, max: number): string[] {
+export function cleanTags(
+  values: readonly unknown[] | null | undefined,
+  max: number,
+): string[] {
   const seen = new Set<string>();
   const tags: string[] = [];
   for (const value of values ?? []) {
     if (typeof value !== "string") continue;
     const tag = value.replace(/\s+/g, " ").trim();
     const key = tag.toLowerCase();
-    if (!tag || Array.from(tag).length > MAX_TAG_LENGTH || seen.has(key)) continue;
+    if (!tag || Array.from(tag).length > MAX_TAG_LENGTH || seen.has(key))
+      continue;
     seen.add(key);
     tags.push(tag);
     if (tags.length === max) break;
@@ -191,7 +234,9 @@ export function cleanTags(values: readonly unknown[] | null | undefined, max: nu
 const MAX_RECORD_LENGTH = 6000;
 
 /** Plain text split into one paragraph per line, whitespace tidied, length capped. */
-export function cleanParagraphs(value: string | null | undefined): string[] | null {
+export function cleanParagraphs(
+  value: string | null | undefined,
+): string[] | null {
   if (typeof value !== "string") return null;
   const paragraphs: string[] = [];
   let used = 0;
@@ -210,6 +255,11 @@ export function cleanParagraphs(value: string | null | undefined): string[] | nu
   return paragraphs.length > 0 ? paragraphs : null;
 }
 
+function wikidataUrl(value: string | number | null | undefined): string | null {
+  const id = String(value ?? "").replace(/^Q/i, "");
+  return /^\d{1,12}$/.test(id) ? `https://www.wikidata.org/wiki/Q${id}` : null;
+}
+
 /** An artist record, or null when it is unusable (no id or name). */
 export function toArtist(input: unknown): Artist | null {
   const parsed = rawArtistSchema.safeParse(input);
@@ -226,5 +276,11 @@ export function toArtist(input: unknown): Artist | null {
     deathYear: year(raw.death_date),
     description: parseDescription(raw.description),
     sourceUrl: museumArtistUrl(raw.id),
+    altNames: cleanTags(raw.alt_titles, 6).filter((alt) => alt !== name),
+    type: cleanText(raw.agent_type_title, 60),
+    ulanUrl: /^\d{5,12}$/.test(String(raw.ulan_id ?? ""))
+      ? `https://vocab.getty.edu/page/ulan/${raw.ulan_id}`
+      : null,
+    wikidataUrl: wikidataUrl(raw.wikidata_id),
   };
 }

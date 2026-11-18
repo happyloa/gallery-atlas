@@ -57,6 +57,17 @@ export const ARTWORK_DETAIL_FIELDS = [
   "publication_history",
   "gallery_id",
   "sound_ids",
+  "alt_titles",
+  "main_reference_number",
+  "department_id",
+  "department_title",
+  "edition",
+  "date_qualifier_title",
+  "alt_image_ids",
+  "video_ids",
+  "text_ids",
+  "section_ids",
+  "site_ids",
 ] as const;
 
 /**

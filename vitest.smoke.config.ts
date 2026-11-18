@@ -14,5 +14,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/smoke/**/*.test.ts"],
     testTimeout: 30_000,
+    // One file at a time: together they exceed the API's 60 requests a minute.
+    fileParallelism: false,
   },
 });

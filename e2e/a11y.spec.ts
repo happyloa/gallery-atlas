@@ -88,6 +88,22 @@ for (const path of [
   "/zh-tw/tours/2193",
   "/en/galleries/2147478672",
   "/en/collection/shared?title=Evening%20light&ids=27992,28560",
+  "/en/search?q=monet",
+  "/zh-tw/artists",
+  "/en/browse",
+  "/zh-tw/browse/places",
+  "/en/browse/vocabulary",
+  "/en/browse/styles/TM-12045",
+  "/zh-tw/read",
+  "/en/read/articles",
+  "/en/read/catalogue-entries/36744351949",
+  "/zh-tw/events",
+  "/en/events/6504",
+  "/zh-tw/visit",
+  "/en/shop",
+  "/zh-tw/shop/292551",
+  "/en/media",
+  "/en/media?kind=sites",
 ]) {
   test(`no WCAG A/AA violations on ${path}`, async ({ page }) => {
     await gotoReady(page, path);

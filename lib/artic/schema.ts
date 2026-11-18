@@ -60,6 +60,17 @@ export const rawArtworkExtrasSchema = z.object({
   publication_history: lenient(z.string()),
   gallery_id: lenient(z.number().int()),
   sound_ids: tagList,
+  alt_titles: tagList,
+  main_reference_number: lenient(z.string()),
+  department_id: lenient(z.string()),
+  department_title: lenient(z.string()),
+  edition: lenient(z.string()),
+  date_qualifier_title: lenient(z.string()),
+  alt_image_ids: tagList,
+  video_ids: tagList,
+  text_ids: tagList,
+  section_ids: tagList,
+  site_ids: tagList,
 });
 
 export const rawArtistSchema = z.object({
@@ -68,6 +79,10 @@ export const rawArtistSchema = z.object({
   birth_date: lenient(z.number().int()),
   death_date: lenient(z.number().int()),
   description: text,
+  alt_titles: tagList,
+  agent_type_title: lenient(z.string()),
+  ulan_id: lenient(z.union([z.number(), z.string()])),
+  wikidata_id: lenient(z.union([z.number(), z.string()])),
 });
 
 const countBucket = z.object({ doc_count: z.number().int().nonnegative() });

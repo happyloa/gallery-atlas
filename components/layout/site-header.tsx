@@ -2,35 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useState } from "react";
-import { Menu, X } from "@/components/ui/icons";
+import { useEffect, useId, useRef, useState } from "react";
+import { ChevronRight, Menu, Search, X } from "@/components/ui/icons";
 import { localizePath } from "@/lib/i18n/config";
 import type { Locale } from "@/lib/i18n/config";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import { LanguageSwitch } from "./language-switch";
 
-function isActive(
-  pathname: string,
-  locale: Locale,
-  section:
-    | "home"
-    | "exhibitions"
-    | "galleries"
-    | "tours"
-    | "map"
-    | "collection"
-    | "about",
-): boolean {
+function isActive(pathname: string, locale: Locale, section: string): boolean {
   const rest = pathname.slice(`/${locale}`.length) || "/";
-  if (section === "home")
-    return (
-      rest === "/" ||
-      rest.startsWith("/artworks") ||
-      rest.startsWith("/artists")
-    );
+  if (section === "home") return rest === "/" || rest.startsWith("/artworks");
   return rest === `/${section}` || rest.startsWith(`/${section}/`);
 }
+
+const desktopLink = (active: boolean) =>
+  cn(
+    "relative py-2 transition-opacity duration-200 ease-gallery hover:opacity-100",
+    active ? "opacity-100" : "opacity-75",
+    "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:bg-current after:transition-transform after:duration-200",
+    active ? "after:scale-x-100" : "after:scale-x-0 hover:after:scale-x-100",
+  );
 
 export function SiteHeader() {
   const { locale, dict } = useI18n();
@@ -46,7 +38,7 @@ export function SiteHeader() {
   const dark = overHero && !scrolled;
 
 
-  const items = [
+  const primary = [
     {
       section: "home",
       href: localizePath(locale, "/"),
@@ -68,21 +60,59 @@ export function SiteHeader() {
       label: dict.site.tours,
     },
     {
-      section: "map",
-      href: localizePath(locale, "/map"),
-      label: dict.site.map,
+      section: "events",
+      href: localizePath(locale, "/events"),
+      label: dict.nav.events,
+    },
+    {
+      section: "read",
+      href: localizePath(locale, "/read"),
+      label: dict.nav.read,
     },
     {
       section: "collection",
       href: localizePath(locale, "/collection"),
       label: dict.site.collection,
     },
+  ];
+  const secondary = [
+    {
+      section: "artists",
+      href: localizePath(locale, "/artists"),
+      label: dict.nav.artists,
+    },
+    {
+      section: "browse",
+      href: localizePath(locale, "/browse"),
+      label: dict.nav.browse,
+    },
+    {
+      section: "map",
+      href: localizePath(locale, "/map"),
+      label: dict.site.map,
+    },
+    {
+      section: "media",
+      href: localizePath(locale, "/media"),
+      label: dict.nav.media,
+    },
+    {
+      section: "visit",
+      href: localizePath(locale, "/visit"),
+      label: dict.nav.visit,
+    },
+    {
+      section: "shop",
+      href: localizePath(locale, "/shop"),
+      label: dict.nav.shop,
+    },
     {
       section: "about",
       href: localizePath(locale, "/about"),
       label: dict.site.about,
     },
-  ] as const;
+  ];
+  const searchPath = localizePath(locale, "/search");
 
   useEffect(() => {
     if (!open) return;
@@ -134,32 +164,41 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-6 xl:gap-8">
+        <div className="flex items-center gap-3 sm:gap-5 xl:gap-6">
           <nav aria-label={dict.site.primaryNav} className="hidden xl:block">
-            <ul className="flex items-center gap-7 text-sm">
-              {items.map((item) => {
+            <ul className="flex items-center gap-6 text-sm">
+              {primary.map((item) => {
                 const active = isActive(pathname, locale, item.section);
                 return (
                   <li key={item.section}>
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "relative py-2 transition-opacity duration-200 ease-gallery hover:opacity-100",
-                        active ? "opacity-100" : "opacity-75",
-                        "after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-left after:bg-current after:transition-transform after:duration-200",
-                        active
-                          ? "after:scale-x-100"
-                          : "after:scale-x-0 hover:after:scale-x-100",
-                      )}
+                      className={desktopLink(active)}
                     >
                       {item.label}
                     </Link>
                   </li>
                 );
               })}
+              <li>
+                <MoreMenu
+                  key={pathname}
+                  label={dict.nav.more}
+                  items={secondary}
+                  isCurrent={(section) => isActive(pathname, locale, section)}
+                />
+              </li>
             </ul>
           </nav>
+          <Link
+            href={searchPath}
+            aria-current={pathname === searchPath ? "page" : undefined}
+            className="inline-flex size-11 items-center justify-center rounded-full opacity-80 transition-opacity duration-200 ease-gallery hover:opacity-100"
+          >
+            <Search className="size-5" />
+            <span className="sr-only">{dict.nav.search}</span>
+          </Link>
           <LanguageSwitch overHero={dark} />
           <button
             type="button"
@@ -186,14 +225,29 @@ export function SiteHeader() {
         )}
       >
         <ul className="flex flex-col px-5 py-3 sm:px-8">
-          {items.map((item) => (
+          {primary.map((item) => (
             <li key={item.section}>
               <Link
                 href={item.href}
                 aria-current={
                   isActive(pathname, locale, item.section) ? "page" : undefined
                 }
-                className="block py-3 font-serif text-2xl"
+                className="block py-2.5 font-serif text-2xl"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <ul className="grid grid-cols-2 gap-x-6 border-t border-current/10 px-5 py-4 sm:px-8">
+          {secondary.map((item) => (
+            <li key={item.section}>
+              <Link
+                href={item.href}
+                aria-current={
+                  isActive(pathname, locale, item.section) ? "page" : undefined
+                }
+                className="block py-2 text-base"
               >
                 {item.label}
               </Link>
@@ -202,6 +256,82 @@ export function SiteHeader() {
         </ul>
       </nav>
     </header>
+  );
+}
+
+/** The rest of the site, folded under one word in the desktop header. */
+function MoreMenu({
+  label,
+  items,
+  isCurrent,
+}: {
+  label: string;
+  items: { section: string; href: string; label: string }[];
+  isCurrent: (section: string) => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const root = useRef<HTMLDivElement | null>(null);
+  const active = items.some((item) => isCurrent(item.section));
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen((value) => !value)}
+        className={cn(
+          desktopLink(active || open),
+          "inline-flex items-center gap-1",
+        )}
+      >
+        {label}
+        <ChevronRight
+          aria-hidden="true"
+          className={cn(
+            "size-3.5 transition-transform duration-200 ease-gallery",
+            open ? "-rotate-90" : "rotate-90",
+          )}
+        />
+      </button>
+      <ul
+        id={menuId}
+        hidden={!open}
+        className="absolute top-full right-0 z-50 mt-3 w-44 border border-line bg-paper py-2 text-ink shadow-[0_18px_30px_-18px_rgb(34_33_31/0.45)]"
+      >
+        {items.map((item) => (
+          <li key={item.section}>
+            <Link
+              href={item.href}
+              aria-current={isCurrent(item.section) ? "page" : undefined}
+              className={cn(
+                "block px-4 py-2 text-sm hover:bg-ink/5",
+                isCurrent(item.section) && "font-medium",
+              )}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

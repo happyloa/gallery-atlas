@@ -151,6 +151,8 @@ export interface SearchScope {
   galleryId?: number;
   /** Leave this work out, e.g. the one already on screen. */
   excludeId?: number;
+  /** Only works filed under this classification term. */
+  term?: { field: string; value: string | number };
   limit?: number;
 }
 
@@ -183,6 +185,9 @@ export function buildSearchRequest(
       { term: { gallery_id: scope.galleryId } },
       { term: { is_on_view: true } },
     );
+
+  if (scope.term)
+    filter.push({ term: { [scope.term.field]: scope.term.value } });
 
   const bool: Record<string, unknown> = { filter };
   if (scope.excludeId !== undefined)
@@ -272,6 +277,10 @@ export const ARTIST_FIELDS = [
   "birth_date",
   "death_date",
   "description",
+  "alt_titles",
+  "agent_type_title",
+  "ulan_id",
+  "wikidata_id",
 ] as const;
 
 export function artistPath(id: number): string {
